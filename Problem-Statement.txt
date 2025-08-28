@@ -1,0 +1,16 @@
+Problem Statement
+Develop a Python-based command-line tool to automatically identify common web application vulnerabilities such as Cross-Site Scripting (XSS), SQL Injection(SQLi), and Cross-Site Request Forgery (CSRF). The goal is to strengthen application security and foster secure development practices.
+
+Solution Approach
+Use requests and Beautiful Soup to crawl web applications and extract input forms. Inject crafted payloads to detect vulnerabilities like XSS, SQLi, & CSRF. Detect reflected inputs, abnormal responses (errors, redirects), or missing CSRF protections. Implement logic to identify patterns indicating vulnerabilities.
+
+Key Criteria
+High detection rate with minimal false positives. Modular, well-documented code with secure testing practices.OWASP guidelines recommended for test coverage.
+
+Technology Stacks
+Python 3.x — Core scripting language
+Requests — For HTTP communication and session handling
+Beautiful Soup— For HTML DOM parsing and input form extraction
+
+Outcomes
+A command-line scanner that detects XSS, SQLi, and CSRF in any web application by taking the target URL as input. Scanner should be able to generates structured HTML reports summarizing the crawled pages and identified vulnerabilities.
