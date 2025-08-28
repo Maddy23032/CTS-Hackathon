@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scan Report for http://testphp.vulnweb.com</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .vulnerable { color: red; font-weight: bold; }
+        .remediation { font-style: italic; background-color: #f9f9f9; padding: 6px; }
+    </style>
+</head>
+<body>
+    <h1>Scan Report for http://testphp.vulnweb.com</h1>
+
+    <h2>Vulnerability Summary</h2>
+    <canvas id="vulnChart" width="600" height="400"></canvas>
+
+    <script>
+    const ctx = document.getElementById('vulnChart').getContext('2d');
+    const vulnChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ["CSRF", "XSS", "SQL Injection"],
+            datasets: [{
+                data: [12, 12, 11],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 20,
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+    </script>
+
+    <h2>Detailed Vulnerabilities</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Form #</th>
+                <th>Vulnerability Type</th>
+                <th>Status</th>
+                <th>Details</th>
+                <th>Remediation</th>
+            </tr>
+        </thead>
+        <tbody>
+    
+            <tr>
+                <td>http://testphp.vulnweb.com/disclaimer.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/disclaimer.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/disclaimer.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/categories.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/categories.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/categories.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/index.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/index.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/index.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/artists.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/artists.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: '"><img src=x onerror=alert('XSS')></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/artists.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'userinfo.php' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <svg/onload=alert('XSS')></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'pass'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'pass'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'userinfo.php' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'pass'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'pass'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/cart.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/cart.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/cart.php</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR 1=1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR 1=1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>2</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>2</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/userinfo.php</td>
+                <td>2</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>2</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>2</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/login.php</td>
+                <td>2</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: '"><img src=x onerror=alert('XSS')></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com</td>
+                <td>1</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1' /*</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1' /*. Use prepared statements.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/guestbook.php</td>
+                <td>1</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'this form' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/guestbook.php</td>
+                <td>1</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <script>alert('XSS')</script></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'submit'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/guestbook.php</td>
+                <td>2</td>
+                <td>CSRF</td>
+                <td class="vulnerable">Yes</td>
+                <td>Form missing CSRF token.</td>
+                <td class="remediation">Add and validate CSRF tokens server-side in your POST forms like 'search.php?test=query' to prevent forgery attacks.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/guestbook.php</td>
+                <td>2</td>
+                <td>XSS</td>
+                <td class="vulnerable">Yes</td>
+                <td>Reflected XSS vulnerability confirmed with fuzzed payloads around: <svg/onload=alert('XSS')></td>
+                <td class="remediation">Prevent XSS by sanitizing and encoding output from 'goButton'. Malicious scripts reflected in response.</td>
+            </tr>
+        
+            <tr>
+                <td>http://testphp.vulnweb.com/guestbook.php</td>
+                <td>2</td>
+                <td>SQL Injection</td>
+                <td class="vulnerable">Yes</td>
+                <td>Detected SQL Injection vulnerability with fuzzed payloads around: ' OR '1'='1--</td>
+                <td class="remediation">Prevent SQL Injection by sanitizing and parameterizing 'goButton'. Detected injection attempt using payload: ' OR '1'='1--. Use prepared statements.</td>
+            </tr>
+        
+        </tbody>
+    </table>
+</body>
+</html>
