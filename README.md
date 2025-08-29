@@ -1,6 +1,5 @@
-Here's the markdown content for running your project:
 
-```markdown
+```
 # Project Setup and Execution Guide
 
 ## Prerequisites
