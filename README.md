@@ -82,5 +82,3 @@ If you encounter any issues:
 3. Ensure the target URL is accessible and properly formatted
 4. Verify you have necessary permissions to scan the target
 ```
-
-This markdown file provides a complete guide for setting up and running your vulnerability scanner project with the specified command structure and parameters.
