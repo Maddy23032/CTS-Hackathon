@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VulnPy Scan Report</title>
+</head>
+<body>
+    <h1>Scan Report for: http://testphp.vulnweb.com/</h1>
+    <h2>Vulnerabilities Found: 150</h2>
+    <table border="1">
+        <tr>
+            <th>Type</th>
+            <th>URL</th>
+            <th>Parameter</th>
+            <th>Payload</th>
+            <th>Evidence</th>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=1</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=3</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=7</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=2</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=4</td>
+            <td>cat</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=3</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=3</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=3</td>
+            <td>cat</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=6</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=1</td>
+            <td>cat</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=2</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=5</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=1</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=2</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=1</td>
+            <td>artist</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=2</td>
+            <td>cat</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=4</td>
+            <td>pic</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>uname</td>
+            <td>' OR 1=1--</td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>pass</td>
+            <td>' OR 1=1--</td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>uname</td>
+            <td>' OR 1=1--</td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>pass</td>
+            <td>' OR 1=1--</td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/secured/newuser.php</td>
+            <td>uuname</td>
+            <td>' OR 1=1--</td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>SQLi</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td>' OR '1'='1' -- </td>
+            <td><pre>You have an error in your SQL syntax; check the manual that corresponds to y</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=1</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=3</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=7</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=2</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/hpp/params.php?p=valid&pp=12</td>
+            <td>p</td>
+            <td><script>alert(1)</script></td>
+            <td><pre><script>alert(1)</script>test</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/hpp/params.php?p=valid&pp=12</td>
+            <td>pp</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>test<script>alert(1)</script></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=4</td>
+            <td>cat</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/artists.php?artist=3</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=3</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=3</td>
+            <td>cat</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=6</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=1</td>
+            <td>cat</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=2</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=5</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/hpp/?pp=12</td>
+            <td>pp</td>
+            <td><script>alert(1)</script></td>
+            <td><pre></a><br/><a href="params.php?p=valid&pp=<script>alert(1)</script>">link2</a><br/><form action="params.php</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=1</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=2</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?artist=1</td>
+            <td>artist</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/listproducts.php?cat=2</td>
+            <td>cat</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/product.php?pic=4</td>
+            <td>pic</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/guestbook.php</td>
+            <td>name</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tyle="background-color:#F5F5F5"><strong><script>alert(1)</script></strong></td><td align="right" style="b</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/guestbook.php</td>
+            <td>text</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>mg src="/images/remark.gif">&nbsp;&nbsp;<script>alert(1)</script></td></tr></table>	 </div>
+	  <div class</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/secured/newuser.php</td>
+            <td>uuname</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>bove informations:</p><ul><li>Username: <script>alert(1)</script></li><li>Password: test</li><li>Name: te</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>addcart</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>sion for the right syntax to use near '=<script>alert(1)</script>' at line 1</pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>XSS</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor</td>
+            <td><script>alert(1)</script></td>
+            <td><pre>tent">
+	<h2 id='pageName'>searched for: <script>alert(1)</script></h2></div>
+<!-- InstanceEndEditable --></pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/guestbook.php</td>
+            <td>name,text,submit</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>uname,pass</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/userinfo.php</td>
+            <td>uname,pass</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/cart.php</td>
+            <td>price,addcart</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+        <tr>
+            <td>CSRF</td>
+            <td>http://testphp.vulnweb.com/search.php?test=query</td>
+            <td>searchFor,goButton</td>
+            <td></td>
+            <td><pre>No anti-CSRF token found in POST form.</pre></td>
+        </tr>
+        
+    </table>
+</body>
+</html>

