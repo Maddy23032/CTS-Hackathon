@@ -22,6 +22,9 @@ def parse_args():
     parser.add_argument("--delay", "-d", type=float, default=0, help="Delay in seconds between HTTP requests.")
     parser.add_argument("--headless", action="store_true", help="Enable headless browser crawling (Playwright, for JS-heavy sites and SPAs).")
     parser.add_argument("--oast", action="store_true", help="Enable Out-of-Band Application Security Testing (OAST) for blind vulnerability detection.")
+    parser.add_argument("--mode", choices=["fast", "full"], default="fast", help="Scan mode: 'fast' (small payload set) or 'full' (all payloads). Default is fast.")
+    parser.add_argument("--ai-calls", type=int, default=30, help="Maximum number of AI API calls for enrichment (default: 30). Use 0 to disable AI.")
+    parser.add_argument("--no-ai", action="store_true", help="Disable AI enrichment entirely (faster for large scans).")
     return parser.parse_args()
 
 def generate_report(findings, target_url, output_file):
@@ -30,9 +33,11 @@ def generate_report(findings, target_url, output_file):
     template_dir = os.path.join(base_dir, 'reports')
     env = Environment(loader=FileSystemLoader(template_dir))
     from reports.ai_summary import generate_ai_summary
+    from datetime import datetime
     ai_summary = generate_ai_summary(findings, target_url)
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     template = env.get_template('template.html')
-    html = template.render(findings=findings, target_url=target_url, ai_summary=ai_summary)
+    html = template.render(findings=findings, target_url=target_url, ai_summary=ai_summary, current_time=current_time)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
     print(f"\n[+] HTML report generated: {output_file}")
@@ -95,7 +100,13 @@ oooo    ooo oooo  oooo   888  ooo. .oo.         888   .d88' oooo    ooo
         sqli_payloads = json.load(f)
     xss_payloads_path = os.path.join(base_dir, 'payloads', 'xss_payloads.txt')
     with open(xss_payloads_path, 'r', encoding='utf-8') as f:
-        xss_payloads = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        all_xss_payloads = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    # Fast mode: use a small, representative set; Full mode: use all
+    if args.mode == 'fast':
+        # Use the first 10 unique payloads for fast mode (or fewer if not enough)
+        xss_payloads = all_xss_payloads[:10]
+    else:
+        xss_payloads = all_xss_payloads
     
     # Initialize scanners with OAST support
     sqli_scanner = SQLiScanner(crawler.session, sqli_payloads, verbose=args.verbose, oast_collaborator=oast_collaborator)
@@ -105,19 +116,50 @@ oooo    ooo oooo  oooo   888  ooo. .oo.         888   .d88' oooo    ooo
     xss_findings = xss_scanner.scan(attack_surface)
     csrf_findings = csrf_scanner.scan(attack_surface)
     all_findings = sqli_findings + xss_findings + csrf_findings
-    # Print findings
+
+    # Enrich findings with static remediation, CVSS, EPSS
+    from vuln_enrichment import enrich_finding, groq_ai_enrich
+    for finding in all_findings:
+        enrich_finding(finding)
+
+    # AI enrichment with Groq AI for all findings (if enabled)
+    if not args.no_ai and args.ai_calls > 0:
+        print(f"[+] Enriching findings with AI analysis (max {args.ai_calls} API calls)...")
+        try:
+            groq_ai_enrich(all_findings, max_ai_calls=args.ai_calls)
+            print("[+] AI enrichment completed successfully")
+        except Exception as e:
+            print(f"[!] AI enrichment failed: {e}")
+            print("[!] Continuing with static enrichment only...")
+            # Ensure all findings have basic AI summary even if enrichment fails
+            for finding in all_findings:
+                if not hasattr(finding, 'ai_summary') or not finding.ai_summary:
+                    finding.ai_summary = 'AI enrichment unavailable'
+    else:
+        # Skip AI enrichment
+        for finding in all_findings:
+            finding.ai_summary = 'AI enrichment disabled'
+        if args.no_ai:
+            print("[+] AI enrichment disabled by user")
+        else:
+            print("[+] AI enrichment disabled (ai-calls set to 0)")
+    
+    # Print findings with enrichment
     print("\nSQLi Findings:")
     for finding in sqli_findings:
         confidence_str = f" (Confidence: {finding.confidence})" if hasattr(finding, 'confidence') and finding.confidence else ""
-        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}, Payload: {finding.payload}\nEvidence: {finding.evidence}\n")
+        ai_summary = f"\nAI Summary: {getattr(finding, 'ai_summary', 'N/A')}" if hasattr(finding, 'ai_summary') else ""
+        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}, Payload: {finding.payload}\nEvidence: {finding.evidence}\nRemediation: {getattr(finding, 'remediation', '')}\nCVSS: {getattr(finding, 'cvss', '')}\nEPSS: {getattr(finding, 'epss', '')}{ai_summary}\n")
     print("\nXSS Findings:")
     for finding in xss_findings:
         confidence_str = f" (Confidence: {finding.confidence})" if hasattr(finding, 'confidence') and finding.confidence else ""
-        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}, Payload: {finding.payload}\nEvidence: {finding.evidence}\n")
+        ai_summary = f"\nAI Summary: {getattr(finding, 'ai_summary', 'N/A')}" if hasattr(finding, 'ai_summary') else ""
+        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}, Payload: {finding.payload}\nEvidence: {finding.evidence}\nRemediation: {getattr(finding, 'remediation', '')}\nCVSS: {getattr(finding, 'cvss', '')}\nEPSS: {getattr(finding, 'epss', '')}{ai_summary}\n")
     print("\nCSRF Findings:")
     for finding in csrf_findings:
         confidence_str = f" (Confidence: {finding.confidence})" if hasattr(finding, 'confidence') and finding.confidence else ""
-        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}\nEvidence: {finding.evidence}\n")
+        ai_summary = f"\nAI Summary: {getattr(finding, 'ai_summary', 'N/A')}" if hasattr(finding, 'ai_summary') else ""
+        print(f"Type: {finding.vulnerability_type}{confidence_str}, URL: {finding.url}, Param: {finding.parameter}\nEvidence: {finding.evidence}\nRemediation: {getattr(finding, 'remediation', '')}\nCVSS: {getattr(finding, 'cvss', '')}\nEPSS: {getattr(finding, 'epss', '')}{ai_summary}\n")
     
     # Stop OAST collaborator if it was started
     if oast_collaborator:

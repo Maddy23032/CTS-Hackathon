@@ -1,391 +1,808 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>VulnPy Scan Report</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnPy Security Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .target-url {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .ai-summary-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .ai-summary-card h2 {
+            color: #4f46e5;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .ai-summary-card pre {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 20px;
+            border-radius: 10px;
+            white-space: pre-wrap; /* Allows wrapping for long text */
+            word-wrap: break-word;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            border-left: 4px solid #4f46e5;
+        }
+
+        .stats-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stats-header h2 {
+            color: #1f2937;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            overflow-x: auto; /* Keeps table scrollable on small screens */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+
+        .vuln-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed; /* Important for preventing content from breaking layout */
+        }
+
+        .vuln-table th {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Re-balanced column widths */
+        .vuln-table th:nth-child(1) { width: 8%; }  /* Type */
+        .vuln-table th:nth-child(2) { width: 20%; } /* URL */
+        .vuln-table th:nth-child(3) { width: 10%; } /* Parameter */
+        .vuln-table th:nth-child(4) { width: 6%; }  /* CVSS */
+        .vuln-table th:nth-child(5) { width: 6%; }  /* EPSS */
+        .vuln-table th:nth-child(6) { width: 12%; } /* Payload */
+        .vuln-table th:nth-child(7) { width: 12%; } /* Evidence */
+        .vuln-table th:nth-child(8) { width: 13%; } /* Remediation */
+        .vuln-table th:nth-child(9) { width: 13%; } /* AI Summary */
+        .vuln-table th:first-child { border-top-left-radius: 15px; }
+        .vuln-table th:last-child { border-top-right-radius: 15px; }
+
+        .vuln-table td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top; /* Aligns content to the top of the cell */
+            word-wrap: break-word; /* Allows long words to break and wrap */
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .vuln-row {
+            transition: all 0.2s ease;
+        }
+
+        .vuln-row:hover {
+            background-color: rgba(79, 70, 229, 0.05) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .vuln-row:last-child td {
+            border-bottom: none; /* No border for the last row */
+        }
+        .vuln-row:last-child td:first-child { border-bottom-left-radius: 15px; }
+        .vuln-row:last-child td:last-child { border-bottom-right-radius: 15px; }
+
+        /* Severity styling */
+        .vuln-row.severity-high { background: #fef2f2; border-left: 4px solid #dc2626; }
+        .vuln-row.severity-medium { background: #fffbeb; border-left: 4px solid #d97706; }
+        .vuln-row.severity-low { background: #f0fdf4; border-left: 4px solid #16a34a; }
+        .vuln-row.severity-unknown { background: #f8fafc; border-left: 4px solid #64748b; }
+
+        .vuln-type {
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+        .vuln-type.xss { background: #fef3c7; color: #92400e; }
+        .vuln-type.sqli { background: #fee2e2; color: #991b1b; }
+        .vuln-type.csrf { background: #ddd6fe; color: #5b21b6; }
+
+        .score-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: center;
+            display: inline-block;
+            min-width: 50px;
+            color: white;
+        }
+        .score-high { background: #dc2626; }
+        .score-medium { background: #d97706; }
+        .score-low { background: #16a34a; }
+        
+        /* Cell-specific styling for proper wrapping and display */
+        .url-cell {
+            word-break: break-all; /* Breaks long URLs anywhere */
+            color: #4f46e5;
+            font-weight: 500;
+        }
+
+        .parameter-cell {
+            font-family: 'Courier New', monospace;
+            background: #eef2ff;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #3730a3;
+            font-weight: 500;
+            display: inline-block;
+            white-space: nowrap; /* Keep this for short parameters */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .payload-cell, .evidence-cell pre, .remediation-card, .ai-summary-cell {
+            background: #f8fafc;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            border-left: 3px solid #cbd5e1;
+            margin: 0;
+            white-space: pre-wrap; /* Key fix: allows wrapping */
+            word-break: break-word; /* Breaks long unbreakable strings */
+        }
+        
+        .payload-cell {
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header h1 { font-size: 2rem; }
+            .vuln-table { font-size: 0.8rem; }
+            .vuln-table th, .vuln-table td { padding: 10px 8px; }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Scan Report for: http://testaspnet.vulnweb.com/</h1>
-    <h2>AI Summary</h2>
-    <div style="background:#f8f8e8; border:1px solid #ccc; padding:1em; margin-bottom:1.5em;">
-        <pre style="white-space: pre-wrap;">Scan Summary for http://testaspnet.vulnweb.com/:
-Total vulnerabilities found: 33.
-- XSS: 19 instance(s)
-- CSRF: 14 instance(s)
+    <div class="container">
+        <div class="header">
+            <h1>🔒 VulnPy Security Report</h1>
+            <div class="target-url">http://testaspnet.vulnweb.com/</div>
+        </div>
+
+        <div class="ai-summary-card">
+            <h2>🤖 AI Analysis Summary</h2>
+            <pre>Scan Summary for http://testaspnet.vulnweb.com/:
+Total vulnerabilities found: 12.
+- XSS: 12 instance(s)
 
 Recommendations:
 - Sanitize and encode all user input/output to prevent XSS attacks.
-- Implement CSRF tokens and verify them on all state-changing requests.
 - Regularly update dependencies and perform security testing.</pre>
-    </div>
-    <h2>Vulnerabilities Found: 33</h2>
-    <table border="1">
-        <tr>
-            <th>Type</th>
-            <th>URL</th>
-            <th>Parameter</th>
-            <th>Payload</th>
-            <th>Evidence</th>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/default.aspx</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
+        </div>
+
+        <div class="stats-header">
+            <h2>📊 Vulnerabilities Found: 12</h2>
+        </div>
+
+        <div class="table-container">
+            <table class="vuln-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>URL</th>
+                        <th>Parameter</th>
+                        <th>CVSS</th>
+                        <th>EPSS</th>
+                        <th>Payload</th>
+                        <th>Evidence</th>
+                        <th>Remediation</th>
+                        <th>AI Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/default.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
 	ViewState: ';alert(1)//
 	Referer: 
 	Path: /default.aspx]
 
-[</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/about.aspx</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
+[</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/about.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
 	ViewState: ';alert(1)//
 	Referer: 
 	Path: /about.aspx]
 
-[Ht</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Signup.aspx</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Signup.aspx]
-
-[H</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Signup.aspx</td>
-            <td>__EVENTVALIDATION</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Signup.aspx]
-
-[H</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=3</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Comments.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=3</td>
-            <td>__EVENTVALIDATION</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
+[Ht</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Comments.aspx?id=0</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
 	ViewState: ';alert(1)//
 	Referer: 
 	Path: /Comments.aspx]
 
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=0&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
+</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Comments.aspx?id=0</td>
+                        <td>
+                            <span class="parameter-cell" title="__EVENTVALIDATION">__EVENTVALIDATION</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /Comments.aspx]
+
+</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">AI analysis: <think>
+Okay, let's tackle this XSS vulnerability analysis. The user provided the URL and parameter involved. First, I need to understand what's happe...</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Signup.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /Signup.aspx]
+
+[H</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Signup.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__EVENTVALIDATION">__EVENTVALIDATION</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /Signup.aspx]
+
+[H</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">AI analysis: <think>
+Okay, let's tackle this XSS vulnerability analysis. The user provided the URL and parameter involved. So, the URL is Signup.aspx on testaspnet...</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/login.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /login.aspx]
+
+[Ht</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/login.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__EVENTVALIDATION">__EVENTVALIDATION</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /login.aspx]
+
+[Ht</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __EVENTVALIDATION parameter in the ASP.NET login form is vulnerable to Cross-Site Scripting (XSS) due to insufficient input validation and output encoding, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Comments.aspx?id=3</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /Comments.aspx]
+
+</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/Comments.aspx?id=3</td>
+                        <td>
+                            <span class="parameter-cell" title="__EVENTVALIDATION">__EVENTVALIDATION</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
+	ViewState: ';alert(1)//
+	Referer: 
+	Path: /Comments.aspx]
+
+</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __EVENTVALIDATION parameter in the ASP.NET login form is vulnerable to Cross-Site Scripting (XSS) due to insufficient input validation and output encoding, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/ReadNews.aspx?id=0&NewsAd=ads%2fdef.html</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
 	ViewState: ';alert(1)//
 	Referer: 
 	Path: /ReadNews.aspx]
 
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=0</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Comments.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=0</td>
-            <td>__EVENTVALIDATION</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Comments.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/default.aspx</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
+</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="vuln-row severity-medium">
+                        <td>
+                            <span class="vuln-type xss">
+                                XSS
+                            </span>
+                        </td>
+                        <td class="url-cell">http://testaspnet.vulnweb.com/default.aspx</td>
+                        <td>
+                            <span class="parameter-cell" title="__VIEWSTATE">__VIEWSTATE</span>
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-medium">
+                                    6.1
+                                </span>
+                            
+                        </td>
+                        <td style="text-align: center;">
+                            
+                                <span class="score-badge score-high">
+                                    0.85
+                                </span>
+                            
+                        </td>
+                        <td>
+                            <div class="payload-cell">';alert(1)//</div>
+                        </td>
+                        <td>
+                            <pre class="evidence-cell">utomated Security Scanner)
 	ViewState: ';alert(1)//
 	Referer: 
 	Path: /default.aspx]
 
-[</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/login.aspx</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /login.aspx]
-
-[Ht</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/login.aspx</td>
-            <td>__EVENTVALIDATION</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /login.aspx]
-
-[Ht</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=2</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Comments.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=2</td>
-            <td>__EVENTVALIDATION</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /Comments.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=3&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /ReadNews.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=2&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /ReadNews.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=3</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /ReadNews.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=0</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /ReadNews.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>XSS</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=2</td>
-            <td>__VIEWSTATE</td>
-            <td>';alert(1)//</td>
-            <td><pre>utomated Security Scanner)
-	ViewState: ';alert(1)//
-	Referer: 
-	Path: /ReadNews.aspx]
-
-</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/default.aspx</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/about.aspx</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/Signup.aspx</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION,tbUsername,tbPassword,btnSignup</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=3</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION,tbComment,btnSend</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=0&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=0</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION,tbComment,btnSend</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/default.aspx</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/login.aspx</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION,tbUsername,tbPassword,cbPersistCookie,btnLogin</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/Comments.aspx?id=2</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION,tbComment,btnSend</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=3&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=2&NewsAd=ads%2fdef.html</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=3</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=0</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-        <tr>
-            <td>CSRF</td>
-            <td>http://testaspnet.vulnweb.com/ReadNews.aspx?id=2</td>
-            <td>__VIEWSTATE,__VIEWSTATEGENERATOR,__EVENTVALIDATION</td>
-            <td></td>
-            <td><pre>No anti-CSRF token found in POST form.</pre></td>
-        </tr>
-        
-    </table>
+[</pre>
+                        </td>
+                        <td>
+                            <div class="remediation-card">Implement proper input validation and output encoding. Use Content Security Policy (CSP).</div>
+                        </td>
+                        <td>
+                            <div class="ai-summary-cell">The __VIEWSTATE parameter is vulnerable to Cross-Site Scripting (XSS) due to improper validation or encoding of user input, allowing attackers to inject malicious scripts into the page.</div>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>Generated by VulnPy Security Scanner | 2025-09-02 10:21:56</p>
+        </div>
+    </div>
 </body>
 </html>
