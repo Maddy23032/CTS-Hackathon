@@ -7,6 +7,8 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
 import Vulnerabilities from "./pages/Vulnerabilities";
+import Reports from "./pages/Reports";
+import { AIAnalysis } from "./pages/AIAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,18 +37,12 @@ const App = () => (
           } />
           <Route path="/reports" element={
             <MainLayout>
-              <div className="p-6">
-                <h1 className="text-3xl font-bold text-foreground">Reports</h1>
-                <p className="text-muted-foreground">Coming soon...</p>
-              </div>
+              <Reports />
             </MainLayout>
           } />
           <Route path="/ai" element={
             <MainLayout>
-              <div className="p-6">
-                <h1 className="text-3xl font-bold text-foreground">AI Analysis</h1>
-                <p className="text-muted-foreground">Coming soon...</p>
-              </div>
+              <AIAnalysis />
             </MainLayout>
           } />
           <Route path="/targets" element={

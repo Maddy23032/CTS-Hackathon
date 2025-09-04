@@ -7,6 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScanLogs } from './ScanLogs_new';
+import { useScan } from '@/hooks/useScan';
+import { ScanRequest } from '@/lib/api';
 import { 
   Target, 
   Settings, 
@@ -24,15 +27,52 @@ export function ScannerInterface() {
   const [scanTypes, setScanTypes] = useState({
     xss: true,
     sqli: true,
-    csrf: false,
+    csrf: true,
     lfi: false,
     rfi: false
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
+  const [scanMode, setScanMode] = useState<'fast' | 'full'>('fast');
+  const [maxAiCalls, setMaxAiCalls] = useState(100);
+  const [requestDelay, setRequestDelay] = useState(100);
+
+  // Use the scan hook
+  const { startScan, scanStatus, isConnected } = useScan();
 
   const handleScanTypeChange = (type: string, checked: boolean) => {
     setScanTypes(prev => ({ ...prev, [type]: checked }));
+  };
+
+  const handleStartScan = async () => {
+    if (!targetUrl) return;
+
+    const selectedScanTypes = Object.entries(scanTypes)
+      .filter(([_, enabled]) => enabled)
+      .map(([type, _]) => type);
+
+    if (selectedScanTypes.length === 0) {
+      alert('Please select at least one scan type');
+      return;
+    }
+
+    const scanRequest: ScanRequest = {
+      target_url: targetUrl,
+      scan_types: selectedScanTypes,
+      mode: scanMode,
+      headless: true,
+      oast: false,
+      ai_calls: aiEnabled ? maxAiCalls : 0,
+      verbose: false,
+      max_depth: 3,
+      delay: requestDelay
+    };
+
+    try {
+      await startScan(scanRequest);
+    } catch (error) {
+      console.error('Failed to start scan:', error);
+    }
   };
 
   return (
@@ -138,7 +178,10 @@ export function ScannerInterface() {
 
                 <TabsContent value="modes" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer">
+                    <Card 
+                      className={`bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer ${scanMode === 'fast' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => setScanMode('fast')}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                           <Zap className="h-5 w-5 text-status-warning" />
@@ -150,7 +193,10 @@ export function ScannerInterface() {
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer">
+                    <Card 
+                      className={`bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer ${scanMode === 'full' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => setScanMode('full')}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                           <Cpu className="h-5 w-5 text-status-scanning" />
@@ -174,7 +220,11 @@ export function ScannerInterface() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-foreground">Request Delay (ms)</Label>
-                          <Input defaultValue="100" type="number" />
+                          <Input 
+                            value={requestDelay} 
+                            onChange={(e) => setRequestDelay(Number(e.target.value))}
+                            type="number" 
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-foreground">Max Concurrent</Label>
@@ -220,12 +270,31 @@ export function ScannerInterface() {
                   
                   <div className="space-y-2">
                     <Label className="text-foreground">Max AI Calls</Label>
-                    <Input defaultValue="100" type="number" />
+                    <Input 
+                      value={maxAiCalls} 
+                      onChange={(e) => setMaxAiCalls(Number(e.target.value))}
+                      type="number" 
+                    />
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Real-time Scan Logs */}
+          {scanStatus.is_scanning && (
+            <Card className="bg-gradient-security border-border">
+              <CardHeader>
+                <CardTitle className="text-lg text-foreground flex items-center gap-2">
+                  <Cpu className="h-5 w-5 text-primary" />
+                  Scan Logs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScanLogs isScanning={scanStatus.is_scanning} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Actions */}
           <Card className="bg-gradient-security border-border">
@@ -239,10 +308,11 @@ export function ScannerInterface() {
               <Button 
                 variant="scanner" 
                 className="w-full" 
-                disabled={!targetUrl}
+                disabled={!targetUrl || scanStatus.is_scanning}
+                onClick={handleStartScan}
               >
                 <Play className="h-4 w-4 mr-2" />
-                Start Security Scan
+                {scanStatus.is_scanning ? 'Scanning...' : 'Start Security Scan'}
               </Button>
               
               <Button variant="outline" className="w-full">
@@ -253,6 +323,9 @@ export function ScannerInterface() {
               <div className="pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
                   Estimated scan time: 15-30 minutes
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Backend: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
                 </p>
               </div>
             </CardContent>

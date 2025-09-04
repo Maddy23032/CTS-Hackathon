@@ -1,53 +1,141 @@
-# Welcome to your Lovable project
+# VulnPy GUI - Complete Setup Instructions
 
-## Project info
+## 🏗️ **Architecture Overview**
 
-**URL**: https://lovable.dev/projects/2ad0cac6-9a80-479d-be4c-c7f3c6cc913d
+The VulnPy GUI consists of two main components:
+- **Frontend**: React/TypeScript application built with Vite
+- **Backend**: FastAPI server that wraps the VulnPy scanner
 
-## How can I edit this code?
+## 📋 **Prerequisites**
 
-There are several ways of editing your application.
+1. **Python 3.8+** with pip
+2. **Node.js 16+** with npm
+3. **Git** (for cloning)
 
-**Use Lovable**
+## 🚀 **Quick Start**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2ad0cac6-9a80-479d-be4c-c7f3c6cc913d) and start prompting.
+### **Option 1: Automated Startup (Recommended)**
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Start Backend** (Terminal 1):
+   ```bash
+   cd "D:\My projects\Vuln-cli\vulnp-ai-gui"
+   .\start_backend.bat
+   ```
 
-**Use your preferred IDE**
+2. **Start Frontend** (Terminal 2):
+   ```bash
+   cd "D:\My projects\Vuln-cli\vulnp-ai-gui"
+   .\start_frontend.bat
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### **Option 2: Manual Setup**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+#### **Backend Setup**
 
-Follow these steps:
+1. **Navigate to backend directory**:
+   ```bash
+   cd "D:\My projects\Vuln-cli\vulnp-ai-gui\backend"
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Install Python dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Start the API server**:
+   ```bash
+   python api_server.py
+   ```
+   
+   ✅ Backend will be available at: http://localhost:8000
+   📖 API documentation: http://localhost:8000/docs
 
-# Step 3: Install the necessary dependencies.
-npm i
+#### **Frontend Setup**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+1. **Navigate to frontend directory**:
+   ```bash
+   cd "D:\My projects\Vuln-cli\vulnp-ai-gui"
+   ```
 
-**Edit a file directly in GitHub**
+2. **Install Node.js dependencies**:
+   ```bash
+   npm install
+   ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+   
+   ✅ Frontend will be available at: http://localhost:5173
 
-**Use GitHub Codespaces**
+## 🎯 **Usage Guide**
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+1. **Start both servers** using the startup scripts
+2. **Open browser** to http://localhost:5173
+3. **Navigate to Scanner** page
+4. **Configure scan settings**:
+   - Target URL
+   - Scan types (XSS, SQLi, CSRF)
+   - Scan mode (Fast/Full)
+   - AI enrichment settings
+5. **Start scan** and monitor progress in real-time
+6. **View results** in the Vulnerabilities page
+7. **Generate reports** from the Reports page
+
+## 🔍 **Features**
+
+### **Real-time Scanning**
+- Live progress updates via WebSocket
+- Phase-by-phase scan monitoring
+- Real-time vulnerability discovery
+
+### **AI Integration**
+- Groq AI-powered vulnerability analysis
+- Intelligent prioritization
+- Smart rate limiting and caching
+
+### **Professional UI**
+- Modern React interface
+- Responsive design
+- Dark/light mode support
+- Professional vulnerability table
+
+## 🐛 **Troubleshooting**
+
+### **Backend Issues**
+
+1. **Port 8000 already in use**:
+   ```bash
+   # Kill existing process
+   taskkill /f /im python.exe
+   # Or change port in api_server.py
+   ```
+
+2. **Module import errors**:
+   ```bash
+   # Ensure you're in the backend directory
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+### **Frontend Issues**
+
+1. **Port 5173 already in use**:
+   ```bash
+   # Kill existing process or use different port
+   npm run dev -- --port 3000
+   ```
+
+2. **API connection errors**:
+   - Ensure backend is running on port 8000
+   - Check API_BASE_URL in `src/lib/api.ts`
+
+---
+
+**🎉 Your VulnPy GUI is now ready to use!**
+
+Navigate to http://localhost:5173 to start scanning for vulnerabilities with a professional web interface.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
@@ -62,12 +150,12 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/2ad0cac6-9a80-479d-be4c-c7f3c6cc913d) and click on Share -> Publish.
+Simply open your deployment dashboard and click on Share -> Publish.
 
-## Can I connect a custom domain to my Lovable project?
+## Can I connect a custom domain to my project?
 
 Yes, you can!
 
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Read more here: [Setting up a custom domain](https://yourdocs.example.com/tips-tricks/custom-domain#step-by-step-guide)
