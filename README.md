@@ -133,10 +133,6 @@ The VulnPy GUI consists of two main components:
 
 ---
 
-**🎉 Your VulnPy GUI is now ready to use!**
-
-Navigate to http://localhost:5173 to start scanning for vulnerabilities with a professional web interface.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
 
@@ -148,14 +144,4 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
 
-Simply open your deployment dashboard and click on Share -> Publish.
-
-## Can I connect a custom domain to my project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://yourdocs.example.com/tips-tricks/custom-domain#step-by-step-guide)
