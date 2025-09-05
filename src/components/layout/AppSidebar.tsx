@@ -8,7 +8,8 @@ import {
   Brain,
   Target,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -30,6 +31,7 @@ const navigationItems = [
   { title: 'Reports', url: '/reports', icon: FileText },
   { title: 'AI Analysis', url: '/ai', icon: Brain },
   { title: 'Targets', url: '/targets', icon: Target },
+  { title: 'OAST', url: '/oast', icon: Globe },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];

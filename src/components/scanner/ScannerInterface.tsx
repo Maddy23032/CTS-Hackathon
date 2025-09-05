@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScanLogs } from './ScanLogs_new';
+import { ScanMonitor } from './ScanMonitor';
 import { useScan } from '@/hooks/useScan';
 import { ScanRequest } from '@/lib/api';
 import { 
@@ -15,11 +16,13 @@ import {
   Settings, 
   Brain, 
   Shield, 
+  Globe,
   ChevronDown,
   Play,
   Clock,
   Zap,
-  Cpu
+  Cpu,
+  Monitor
 } from 'lucide-react';
 
 export function ScannerInterface() {
@@ -28,14 +31,20 @@ export function ScannerInterface() {
     xss: true,
     sqli: true,
     csrf: true,
-    lfi: false,
-    rfi: false
+    security_misconfiguration: false,
+    vulnerable_components: false,
+    ssrf: false
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
+  const [oastEnabled, setOastEnabled] = useState(false);
+  const [verboseEnabled, setVerboseEnabled] = useState(true);
+  const [headlessMode, setHeadlessMode] = useState(false);
   const [scanMode, setScanMode] = useState<'fast' | 'full'>('fast');
-  const [maxAiCalls, setMaxAiCalls] = useState(100);
+  const [maxAiCalls, setMaxAiCalls] = useState(30);
   const [requestDelay, setRequestDelay] = useState(100);
+  const [showScanMonitor, setShowScanMonitor] = useState(false);
+  const [currentScanRequest, setCurrentScanRequest] = useState<ScanRequest | null>(null);
 
   // Use the scan hook
   const { startScan, scanStatus, isConnected } = useScan();
@@ -60,15 +69,20 @@ export function ScannerInterface() {
       target_url: targetUrl,
       scan_types: selectedScanTypes,
       mode: scanMode,
-      headless: true,
-      oast: false,
+      headless: headlessMode,
+      oast: oastEnabled,
       ai_calls: aiEnabled ? maxAiCalls : 0,
-      verbose: false,
+      verbose: verboseEnabled, // Use the verbose setting from UI
       max_depth: 3,
       delay: requestDelay
     };
 
     try {
+      // Show the monitor immediately, unless in headless mode
+      if (!headlessMode) {
+        setShowScanMonitor(true);
+      }
+      setCurrentScanRequest(scanRequest);
       await startScan(scanRequest);
     } catch (error) {
       console.error('Failed to start scan:', error);
@@ -155,9 +169,9 @@ export function ScannerInterface() {
                       { id: 'xss', label: 'Cross-Site Scripting (XSS)', color: 'severity-high' },
                       { id: 'sqli', label: 'SQL Injection', color: 'severity-critical' },
                       { id: 'csrf', label: 'CSRF Vulnerabilities', color: 'severity-medium' },
-                      { id: 'lfi', label: 'Local File Inclusion', color: 'severity-high' },
-                      { id: 'rfi', label: 'Remote File Inclusion', color: 'severity-critical' },
-                      { id: 'xxe', label: 'XML External Entity', color: 'severity-medium' }
+                      { id: 'security_misconfiguration', label: 'Security Misconfiguration', color: 'severity-high' },
+                      { id: 'vulnerable_components', label: 'Vulnerable Components', color: 'severity-critical' },
+                      { id: 'ssrf', label: 'Server-Side Request Forgery', color: 'severity-high' }
                     ].map((scanType) => (
                       <div key={scanType.id} className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:bg-secondary/20">
                         <Checkbox
@@ -180,31 +194,63 @@ export function ScannerInterface() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card 
                       className={`bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer ${scanMode === 'fast' ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setScanMode('fast')}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center gap-3 mb-3"
+                          onClick={() => setScanMode('fast')}
+                        >
                           <Zap className="h-5 w-5 text-status-warning" />
                           <div>
                             <h3 className="font-medium text-foreground">Fast Scan</h3>
                             <p className="text-sm text-muted-foreground">Quick scan with limited payloads</p>
                           </div>
                         </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full"
+                          disabled={!targetUrl || scanStatus.is_scanning}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setScanMode('fast');
+                            handleStartScan();
+                          }}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Start Fast Scan
+                        </Button>
                       </CardContent>
                     </Card>
 
                     <Card 
                       className={`bg-card border-border hover:shadow-glow-primary transition-all cursor-pointer ${scanMode === 'full' ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setScanMode('full')}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center gap-3 mb-3"
+                          onClick={() => setScanMode('full')}
+                        >
                           <Cpu className="h-5 w-5 text-status-scanning" />
                           <div>
                             <h3 className="font-medium text-foreground">Full Scan</h3>
                             <p className="text-sm text-muted-foreground">Comprehensive scan with all payloads</p>
                           </div>
                         </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full"
+                          disabled={!targetUrl || scanStatus.is_scanning}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setScanMode('full');
+                            handleStartScan();
+                          }}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Start Full Scan
+                        </Button>
                       </CardContent>
                     </Card>
                   </div>
@@ -281,6 +327,77 @@ export function ScannerInterface() {
             </CardContent>
           </Card>
 
+          {/* OAST Configuration */}
+          <Card className="bg-gradient-security border-border">
+            <CardHeader>
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                OAST (Out-of-Band Testing)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="oast-enabled"
+                  checked={oastEnabled}
+                  onCheckedChange={(checked) => setOastEnabled(checked === true)}
+                />
+                <Label htmlFor="oast-enabled" className="text-foreground">
+                  Enable OAST Testing
+                </Label>
+              </div>
+              
+              {oastEnabled && (
+                <div className="p-3 bg-secondary/20 rounded-lg">
+                  <p className="text-sm text-foreground">Blind Vulnerability Detection</p>
+                  <p className="text-xs text-muted-foreground">
+                    Detects blind XSS, SQL injection, and command injection vulnerabilities
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Scan Options */}
+          <Card className="bg-gradient-security border-border">
+            <CardHeader>
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
+                <Monitor className="h-5 w-5 text-primary" />
+                Scan Options
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="verbose-enabled"
+                  checked={verboseEnabled}
+                  onCheckedChange={(checked) => setVerboseEnabled(checked === true)}
+                />
+                <Label htmlFor="verbose-enabled" className="text-foreground">
+                  Verbose Logging
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="headless-mode"
+                  checked={headlessMode}
+                  onCheckedChange={(checked) => setHeadlessMode(checked === true)}
+                />
+                <Label htmlFor="headless-mode" className="text-foreground">
+                  Headless Mode
+                </Label>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Verbose logging provides detailed real-time scan information. 
+                  Headless mode runs scans without opening the monitor window.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Real-time Scan Logs */}
           {scanStatus.is_scanning && (
             <Card className="bg-gradient-security border-border">
@@ -315,6 +432,18 @@ export function ScannerInterface() {
                 {scanStatus.is_scanning ? 'Scanning...' : 'Start Security Scan'}
               </Button>
               
+              {/* Monitor button - shown when scan is running or completed */}
+              {(scanStatus.is_scanning || currentScanRequest) && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => setShowScanMonitor(true)}
+                >
+                  <Monitor className="h-4 w-4 mr-2" />
+                  {scanStatus.is_scanning ? 'Monitor Scan Progress' : 'View Last Scan'}
+                </Button>
+              )}
+              
               <Button variant="outline" className="w-full">
                 <Clock className="h-4 w-4 mr-2" />
                 Schedule Scan
@@ -327,6 +456,11 @@ export function ScannerInterface() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Backend: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
                 </p>
+                {scanStatus.is_scanning && (
+                  <p className="text-xs text-primary mt-1 font-medium">
+                    📊 Scan Monitor available - Click to view progress
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -350,6 +484,15 @@ export function ScannerInterface() {
           </Card>
         </div>
       </div>
+
+      {/* Scan Monitor Dialog */}
+      {currentScanRequest && (
+        <ScanMonitor
+          isOpen={showScanMonitor}
+          onClose={() => setShowScanMonitor(false)}
+          scanRequest={currentScanRequest}
+        />
+      )}
     </div>
   );
 }

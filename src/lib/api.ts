@@ -106,6 +106,10 @@ export interface ScanStatus {
   is_scanning: boolean;
   progress: number;
   phase: string;
+  current_url?: string;
+  current_payload?: string;
+  start_time?: string;
+  elapsed_time?: number;
   stats: {
     urls_crawled: number;
     forms_found: number;
@@ -114,6 +118,12 @@ export interface ScanStatus {
     ai_calls_made: number;
   };
   config?: any;
+  phase_details?: {
+    crawl_queue_size?: number;
+    scan_queue_size?: number;
+    current_depth?: number;
+    max_depth?: number;
+  };
 }
 
 export interface LogEntry {
@@ -124,9 +134,90 @@ export interface LogEntry {
   phase?: string;
 }
 
+export interface OASTConfig {
+  collaborator_url: string;
+  auth_token?: string;
+  enabled: boolean;
+}
+
+export interface OASTStatus {
+  status: string;
+  collaborator_url: string;
+  statistics: {
+    total_payloads: number;
+    active_payloads: number;
+    total_callbacks: number;
+    vulnerability_types: Record<string, { payloads: number; callbacks: number }>;
+    success_rate: number;
+  };
+}
+
+export interface OASTPayload {
+  id: string;
+  payload: string;
+  callback_url: string;
+  vulnerability_type: string;
+  created_at: string;
+  expires_at: string;
+  scan_id?: string;
+  has_callback: boolean;
+}
+
+export interface OASTCallback {
+  id: string;
+  payload_id: string;
+  timestamp: string;
+  source_ip: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+  url: string;
+  vulnerability_type: string;
+  scan_id?: string;
+}
+
+export interface OASTPayloadsResponse {
+  status: string;
+  payloads: OASTPayload[];
+  total: number;
+}
+
+export interface OASTCallbacksResponse {
+  status: string;
+  callbacks: OASTCallback[];
+  total: number;
+}
+
 class ApiService {
   private websocket: WebSocket | null = null;
   private wsListeners: ((data: any) => void)[] = [];
+  // Live cache of vulnerabilities discovered during the current session
+  private liveVulnerabilities: Vulnerability[] = [];
+
+  private addLiveVulnerability(v: Vulnerability) {
+    this.liveVulnerabilities.push(v);
+  }
+
+  private clearLiveVulnerabilities() {
+    this.liveVulnerabilities = [];
+  }
+
+  getLiveVulnerabilities(): {
+    vulnerabilities: Vulnerability[];
+    total: number;
+    by_type: { [key: string]: number };
+  } {
+    const by_type: { [key: string]: number } = {};
+    for (const v of this.liveVulnerabilities) {
+      const t = (v.type || 'unknown').toString().toLowerCase();
+      by_type[t] = (by_type[t] || 0) + 1;
+    }
+    return {
+      vulnerabilities: this.liveVulnerabilities,
+      total: this.liveVulnerabilities.length,
+      by_type,
+    };
+  }
 
   // Start a new vulnerability scan
   async startScan(scanRequest: ScanRequest): Promise<{ scan_id: string; status: string; message: string }> {
@@ -173,19 +264,47 @@ class ApiService {
   async getVulnerabilities(): Promise<{
     vulnerabilities: Vulnerability[];
     total: number;
-    by_type: {
-      xss: number;
-      sqli: number;
-      csrf: number;
-    };
+    by_type: { [key: string]: number };
   }> {
-    const response = await fetch(`${API_BASE_URL}/api/vulnerabilities`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get vulnerabilities: ${response.statusText}`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/vulnerabilities`);
+      if (response.ok) {
+        const data = await response.json();
+        // If backend returns empty, try fallback
+        if (data && Array.isArray(data.vulnerabilities) && data.vulnerabilities.length > 0) {
+          return data;
+        }
+      }
+    } catch (e) {
+      // ignore and fallback
     }
+    // Fallback to live cache
+    const fallback = this.getLiveVulnerabilities();
+    // Coerce to expected shape
+    const ensured = {
+      vulnerabilities: fallback.vulnerabilities,
+      total: fallback.total,
+      by_type: fallback.by_type,
+    };
+    return ensured;
+  }
 
-    return response.json();
+  // Fallback: if backend is unavailable or returns empty, use live cache
+  async getVulnerabilitiesWithFallback(): Promise<{
+    vulnerabilities: Vulnerability[];
+    total: number;
+    by_type: { [key: string]: number };
+  }> {
+    try {
+      const data = await this.getVulnerabilities();
+      // If backend has data, prefer it
+      if (data && Array.isArray(data.vulnerabilities) && data.vulnerabilities.length > 0) {
+        return data as any;
+      }
+    } catch (e) {
+      // Ignore and use fallback
+    }
+    return this.getLiveVulnerabilities();
   }
 
   // Get scan logs
@@ -383,6 +502,29 @@ class ApiService {
         this.websocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            // Update local vulnerability cache on relevant events
+            if (data?.type === 'scan_started') {
+              this.clearLiveVulnerabilities();
+            }
+      if (data?.type === 'vulnerability_found' && data.vulnerability) {
+              const v = data.vulnerability as any;
+              const mapped: Vulnerability = {
+        id: v.id || (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2)),
+                type: v.type || 'unknown',
+                url: v.url || '',
+                parameter: v.parameter || '',
+                payload: v.payload || '',
+                evidence: v.evidence || '',
+                remediation: v.remediation || '',
+                cvss: typeof v.cvss === 'number' ? v.cvss : 0,
+                epss: typeof v.epss === 'number' ? v.epss : 0,
+                severity: v.severity || 'Medium',
+                ai_summary: v.ai_summary,
+                confidence: v.confidence || 'Medium',
+                timestamp: new Date().toISOString(),
+              };
+              this.addLiveVulnerability(mapped);
+            }
             // Notify all listeners
             this.wsListeners.forEach(listener => listener(data));
           } catch (error) {
@@ -441,6 +583,93 @@ class ApiService {
       console.error('Backend health check failed:', error);
       return false;
     }
+  }
+
+  // ==================== OAST METHODS ====================
+
+  async configureOAST(config: OASTConfig): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/oast/configure`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getOASTStatus(): Promise<OASTStatus> {
+    const response = await fetch(`${API_BASE_URL}/api/oast/status`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getOASTPayloads(scanId?: string, vulnerabilityType?: string): Promise<OASTPayloadsResponse> {
+    const params = new URLSearchParams();
+    if (scanId) params.append('scan_id', scanId);
+    if (vulnerabilityType) params.append('vulnerability_type', vulnerabilityType);
+
+    const response = await fetch(`${API_BASE_URL}/api/oast/payloads?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getOASTCallbacks(payloadId?: string, scanId?: string): Promise<OASTCallbacksResponse> {
+    const params = new URLSearchParams();
+    if (payloadId) params.append('payload_id', payloadId);
+    if (scanId) params.append('scan_id', scanId);
+
+    const response = await fetch(`${API_BASE_URL}/api/oast/callbacks?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async generateOASTPayloads(vulnerabilityType: string, scanId?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/oast/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        vulnerability_type: vulnerabilityType,
+        scan_id: scanId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async cleanupOAST(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/oast/cleanup`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 }
 

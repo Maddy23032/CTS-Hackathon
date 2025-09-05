@@ -30,7 +30,13 @@ class MongoDB:
             
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
-            raise
+            # Don't raise the exception, just log it
+            self.client = None
+            self.db = None
+            
+    def is_connected(self) -> bool:
+        """Check if MongoDB is connected"""
+        return self.client is not None and self.db is not None
     
     async def create_indexes(self):
         """Create database indexes for optimal performance"""

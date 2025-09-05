@@ -46,7 +46,7 @@ class SQLiScanner:
 						if self.is_error(resp.text):
 							evidence = self.extract_evidence(resp.text)
 							findings.append(Vulnerability(
-								vulnerability_type="SQLi",
+								vulnerability_type="sqli",
 								url=url,
 								parameter=param,
 								payload=payload,
@@ -89,7 +89,7 @@ class SQLiScanner:
 						if self.is_error(resp.text):
 							evidence = self.extract_evidence(resp.text)
 							findings.append(Vulnerability(
-								vulnerability_type="SQLi",
+								vulnerability_type="sqli",
 								url=url,
 								parameter=param,
 								payload=payload,
@@ -152,7 +152,7 @@ class SQLiScanner:
 				if self.oast_collaborator.check_callback(callback_id):
 					self.log(f"BLIND SQLi detected via OAST: {url} param={param} db={db_type}")
 					findings.append(Vulnerability(
-						vulnerability_type="Blind SQLi (OAST)",
+						vulnerability_type="sqli",
 						url=url,
 						parameter=param,
 						payload=payload,
@@ -199,7 +199,7 @@ class SQLiScanner:
 				if self.oast_collaborator.check_callback(callback_id):
 					self.log(f"BLIND SQLi detected via OAST: {url} param={param} db={db_type}")
 					findings.append(Vulnerability(
-						vulnerability_type="Blind SQLi (OAST)",
+						vulnerability_type="sqli",
 						url=url,
 						parameter=param,
 						payload=payload,

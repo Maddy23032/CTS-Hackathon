@@ -1,19 +1,112 @@
-# vuln_enrichment.py
-# Provides enrichment (remediation, CVSS, EPSS, AI summary) for vulnerabilities using Groq AI
+"""
+vuln_enrichment.py
+Provides enrichment (remediation, CVSS, EPSS, AI summary) for vulnerabilities using Groq AI
+
+- Reads API key from environment variable GROQ_API_KEY (secure). Falls back to provided key if missing.
+- Uses model qwen/qwen3-32b by default (override via GROQ_MODEL).
+- Enforces practical rate-limiting: <= 60 req/min and <= 6000 tokens/min.
+- Keeps responses concise (max_tokens default 600) and caches by vuln type+param to avoid duplicate calls.
+"""
 import os
 import time
 import hashlib
 from groq import Groq
+import json
 
 # Static vulnerability database with CVSS and EPSS scores
 VULN_MAP = {
     'xss': {'cvss': 6.1, 'epss': 0.85, 'severity': 'medium'},
     'sqli': {'cvss': 9.8, 'epss': 0.92, 'severity': 'critical'},
-    'csrf': {'cvss': 6.8, 'epss': 0.77, 'severity': 'medium'}
+    'csrf': {'cvss': 6.8, 'epss': 0.77, 'severity': 'medium'},
+    'ssrf': {'cvss': 8.6, 'epss': 0.81, 'severity': 'high'},
+    'security_misconfiguration': {'cvss': 7.5, 'epss': 0.5, 'severity': 'medium'},
+    'vulnerable_components': {'cvss': 7.8, 'epss': 0.65, 'severity': 'high'},
 }
 
 # Cache for AI responses to avoid duplicate API calls
 AI_CACHE = {}
+
+# ---------- AI/RATE LIMIT CONFIG ----------
+MODEL_NAME = os.getenv("GROQ_MODEL", "qwen/qwen3-32b")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Provider limits
+CALLS_PER_MIN_LIMIT = int(os.getenv("GROQ_CALLS_PER_MIN", "60"))
+TOKENS_PER_MIN_LIMIT = int(os.getenv("GROQ_TOKENS_PER_MIN", "6000"))
+
+# Local throttle choices (keep under provider ceilings)
+MAX_TOKENS_PER_CALL = int(os.getenv("GROQ_MAX_TOKENS", "600"))  # concise JSON answer
+PROMPT_OVERHEAD_TOKENS = int(os.getenv("GROQ_PROMPT_OVERHEAD", "400"))  # rough prompt size estimate
+MIN_DELAY_SECONDS = float(os.getenv("GROQ_MIN_DELAY", "1.2"))  # between calls
+MAX_CALLS_PER_RUN_DEFAULT = int(os.getenv("GROQ_MAX_CALLS_PER_RUN", "50"))
+
+# Daily budgets (provider): 1k requests/day, 500k tokens/day
+CALLS_PER_DAY_LIMIT = int(os.getenv("GROQ_CALLS_PER_DAY", "1000"))
+TOKENS_PER_DAY_LIMIT = int(os.getenv("GROQ_TOKENS_PER_DAY", "500000"))
+USAGE_FILE = os.getenv("GROQ_USAGE_FILE", os.path.join(os.path.dirname(__file__), "groq_usage.json"))
+
+# Rolling per-minute counters
+_window_start_ts = 0.0
+_tokens_used_in_window = 0
+_calls_in_window = 0
+
+def _reset_window_if_needed():
+    global _window_start_ts, _tokens_used_in_window, _calls_in_window
+    now = time.time()
+    if _window_start_ts == 0.0 or (now - _window_start_ts) >= 60.0:
+        _window_start_ts = now
+        _tokens_used_in_window = 0
+        _calls_in_window = 0
+
+def _wait_for_budget(tokens_needed: int):
+    """Block until both calls/min and tokens/min budgets allow another call."""
+    global _tokens_used_in_window, _calls_in_window
+    while True:
+        _reset_window_if_needed()
+        if (
+            _calls_in_window < CALLS_PER_MIN_LIMIT
+            and (_tokens_used_in_window + tokens_needed) <= TOKENS_PER_MIN_LIMIT
+        ):
+            return
+        # Sleep a short time and re-check; align roughly to minute windows
+        time.sleep(0.5)
+        _reset_window_if_needed()
+
+def _consume_budget(tokens_used: int):
+    global _tokens_used_in_window, _calls_in_window
+    _tokens_used_in_window += tokens_used
+    _calls_in_window += 1
+
+# ---------- DAILY BUDGET TRACKING ----------
+def _load_daily_usage():
+    today = time.strftime("%Y-%m-%d")
+    try:
+        if os.path.exists(USAGE_FILE):
+            with open(USAGE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("date") == today:
+                    return data
+    except Exception:
+        pass
+    return {"date": today, "calls": 0, "tokens": 0}
+
+def _save_daily_usage(data):
+    try:
+        with open(USAGE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+def _check_and_consume_daily_budget(tokens_needed: int) -> bool:
+    data = _load_daily_usage()
+    if data["calls"] + 1 > CALLS_PER_DAY_LIMIT:
+        return False
+    if data["tokens"] + tokens_needed > TOKENS_PER_DAY_LIMIT:
+        return False
+    data["calls"] += 1
+    data["tokens"] += tokens_needed
+    _save_daily_usage(data)
+    return True
 
 def enrich_finding(finding):
     """Enrich a finding with static vulnerability data"""
@@ -76,12 +169,15 @@ def groq_ai_enrich(findings, max_ai_calls=30):
     print(f"[+] Processing {len(findings)} findings with AI enrichment (max {max_ai_calls} AI calls)")
     
     # Set up Groq client with API key
-    client = Groq(api_key="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")
+    client = Groq(api_key=GROQ_API_KEY)
     enriched_count = 0
     api_calls_made = 0
     
     # Sort findings by priority (most important first)
     prioritized_findings = sorted(findings, key=get_vulnerability_priority, reverse=True)
+
+    # Clamp per-run API calls to a safe upper bound
+    max_allowed_calls = min(max_ai_calls or MAX_CALLS_PER_RUN_DEFAULT, MAX_CALLS_PER_RUN_DEFAULT)
     
     # Process findings with intelligent caching and rate limiting
     for i, finding in enumerate(prioritized_findings):
@@ -98,13 +194,20 @@ def groq_ai_enrich(findings, max_ai_calls=30):
                 continue
             
             # Stop making API calls if we've reached the limit
-            if api_calls_made >= max_ai_calls:
+            if api_calls_made >= max_allowed_calls:
                 finding.ai_summary = f"AI analysis skipped (rate limit reached, {api_calls_made}/{max_ai_calls} calls used)"
                 continue
             
-            # Rate limiting: Add delay between API calls
-            if api_calls_made > 0:
-                time.sleep(2)  # 2 second delay between calls
+            # Rate limiting: budget checks (daily + per-minute)
+            tokens_needed = MAX_TOKENS_PER_CALL + PROMPT_OVERHEAD_TOKENS
+            if not _check_and_consume_daily_budget(tokens_needed):
+                finding.ai_summary = (
+                    f"AI analysis skipped (daily budget reached: calls/tokens limit)"
+                )
+                continue
+            _wait_for_budget(tokens_needed)
+            if api_calls_made > 0 and MIN_DELAY_SECONDS > 0:
+                time.sleep(MIN_DELAY_SECONDS)
             
             # Create a concise prompt for the finding
             prompt = (
@@ -119,7 +222,7 @@ def groq_ai_enrich(findings, max_ai_calls=30):
             )
             
             completion = client.chat.completions.create(
-                model="qwen/qwen3-32b",
+                model=MODEL_NAME,
                 messages=[
                     {
                         "role": "user",
@@ -127,13 +230,14 @@ def groq_ai_enrich(findings, max_ai_calls=30):
                     }
                 ],
                 temperature=0.6,
-                max_tokens=4096,
+                max_tokens=MAX_TOKENS_PER_CALL,
                 top_p=0.95,
                 stream=False,
                 stop=None
             )
             
             api_calls_made += 1
+            _consume_budget(tokens_needed)
             
             # Extract response
             if completion.choices and len(completion.choices) > 0:
@@ -182,7 +286,7 @@ def groq_ai_enrich(findings, max_ai_calls=30):
                 print(f"[!] Rate limit hit after {api_calls_made} calls. Continuing with static enrichment...")
                 finding.ai_summary = f'AI rate limit reached (used {api_calls_made} calls)'
                 # Stop making more API calls
-                max_ai_calls = api_calls_made
+                max_allowed_calls = api_calls_made
             elif "has no attribute" in error_msg:
                 # Attribute error - likely missing field on finding object
                 print(f"[!] Attribute error during AI enrichment: {error_msg}")

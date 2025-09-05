@@ -99,11 +99,19 @@ export const useScan = () => {
     const handleWebSocketMessage = (data: any) => {
       switch (data.type) {
         case 'scan_started':
+          // Optimistically mark scanning active for immediate UI feedback
+          setScanStatus(prev => ({
+            ...prev,
+            is_scanning: true,
+            phase: 'crawling',
+            progress: 0,
+          }));
           refreshStatus();
           break;
         case 'phase_update':
           setScanStatus(prev => ({
             ...prev,
+            is_scanning: true,
             phase: data.phase,
             progress: data.progress,
           }));
@@ -128,20 +136,30 @@ export const useScan = () => {
             },
           }));
           break;
-        case 'scan_complete':
+        case 'vulnerability_found':
+          // Increment per single finding as they stream in
+          setScanStatus(prev => ({
+            ...prev,
+            stats: {
+              ...prev.stats,
+              vulnerabilities_found: prev.stats.vulnerabilities_found + 1,
+            },
+          }));
+          break;
+    case 'scan_complete':
           setScanStatus(prev => ({
             ...prev,
             is_scanning: false,
             progress: 100,
-            phase: 'complete',
+      phase: 'completed',
             stats: {
               ...prev.stats,
-              vulnerabilities_found: data.total_vulnerabilities,
+              vulnerabilities_found: data.total_vulnerabilities ?? data.vulnerabilities_found ?? prev.stats.vulnerabilities_found,
             },
           }));
           toast({
             title: "Scan Complete",
-            description: `Found ${data.total_vulnerabilities} vulnerabilities`,
+            description: `Found ${data.total_vulnerabilities ?? data.vulnerabilities_found ?? 0} vulnerabilities`,
           });
           break;
         case 'scan_stopped':
@@ -197,7 +215,7 @@ export const useVulnerabilities = () => {
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
   const [vulnStats, setVulnStats] = useState({
     total: 0,
-    by_type: { xss: 0, sqli: 0, csrf: 0 },
+    by_type: {} as Record<string, number>,
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -206,7 +224,7 @@ export const useVulnerabilities = () => {
   const fetchVulnerabilities = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await apiService.getVulnerabilities();
+  const result = await apiService.getVulnerabilitiesWithFallback();
       setVulnerabilities(result.vulnerabilities);
       setVulnStats({
         total: result.total,
@@ -247,7 +265,7 @@ export const useVulnerabilities = () => {
   // Auto-refresh vulnerabilities when new ones are found
   useEffect(() => {
     const handleWebSocketMessage = (data: any) => {
-      if (data.type === 'vulnerabilities_found' || data.type === 'ai_enrichment_complete') {
+  if (data.type === 'vulnerabilities_found' || data.type === 'vulnerability_found' || data.type === 'ai_enrichment_complete') {
         fetchVulnerabilities();
       }
     };

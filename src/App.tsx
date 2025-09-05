@@ -9,6 +9,9 @@ import Scanner from "./pages/Scanner";
 import Vulnerabilities from "./pages/Vulnerabilities";
 import Reports from "./pages/Reports";
 import { AIAnalysis } from "./pages/AIAnalysis";
+import { OASTManager } from "./components/scanner/OASTManager";
+import { Targets } from "./components/targets/Targets";
+import { Analysis } from "./components/analysis/Analysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,20 +48,19 @@ const App = () => (
               <AIAnalysis />
             </MainLayout>
           } />
+          <Route path="/oast" element={
+            <MainLayout>
+              <OASTManager />
+            </MainLayout>
+          } />
           <Route path="/targets" element={
             <MainLayout>
-              <div className="p-6">
-                <h1 className="text-3xl font-bold text-foreground">Target Management</h1>
-                <p className="text-muted-foreground">Coming soon...</p>
-              </div>
+              <Targets />
             </MainLayout>
           } />
           <Route path="/analytics" element={
             <MainLayout>
-              <div className="p-6">
-                <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-                <p className="text-muted-foreground">Coming soon...</p>
-              </div>
+              <Analysis />
             </MainLayout>
           } />
           <Route path="/settings" element={

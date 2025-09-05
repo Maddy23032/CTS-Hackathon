@@ -61,7 +61,7 @@ export function AIAnalysis() {
   const fetchAIAnalysis = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getVulnerabilities();
+  const response = await apiService.getVulnerabilitiesWithFallback();
       const vulns = response.vulnerabilities || [];
       
       setVulnerabilities(vulns);

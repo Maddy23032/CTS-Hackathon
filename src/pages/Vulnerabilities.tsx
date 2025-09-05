@@ -39,7 +39,7 @@ const Vulnerabilities: React.FC = () => {
   const fetchVulnerabilities = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getVulnerabilities();
+  const response = await apiService.getVulnerabilitiesWithFallback();
       
       if (response.vulnerabilities) {
         setVulnerabilities(response.vulnerabilities);

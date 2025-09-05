@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment and local config (do not commit secrets)
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# Local AI usage tracking file
+backend/groq_usage.json

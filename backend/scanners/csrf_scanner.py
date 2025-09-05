@@ -36,7 +36,7 @@ class CSRFScanner:
 								break
 						if not token_found:
 							findings.append(Vulnerability(
-								vulnerability_type="CSRF",
+								vulnerability_type="csrf",
 								url=url,
 								parameter=','.join(inputs),
 								payload="",
@@ -55,7 +55,7 @@ class CSRFScanner:
 					for cookie in cookies:
 						if 'samesite' not in cookie.lower():
 							findings.append(Vulnerability(
-								vulnerability_type="CSRF",
+								vulnerability_type="csrf",
 								url=url,
 								parameter="cookie",
 								payload="",

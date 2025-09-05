@@ -46,7 +46,7 @@ const Reports: React.FC = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getVulnerabilities();
+  const response = await apiService.getVulnerabilitiesWithFallback();
       
       if (response.vulnerabilities) {
         setVulnerabilities(response.vulnerabilities);
@@ -68,14 +68,23 @@ const Reports: React.FC = () => {
 
     // Group by date and target
     const groups = vulnerabilities.reduce((acc, vuln) => {
-      const date = vuln.timestamp.split(' ')[0]; // Get date part
-      const key = `${date}-${vuln.url}`;
+      const ts = vuln.timestamp || new Date().toISOString();
+      const date = (() => {
+        try {
+          const d = new Date(ts);
+          if (isNaN(d.getTime())) return ts.split('T')[0] || ts;
+          return d.toISOString().split('T')[0];
+        } catch {
+          return (ts.split('T')[0] || ts).toString();
+        }
+      })();
+      const key = `${date}-${vuln.url || 'unknown'}`;
       
       if (!acc[key]) {
         acc[key] = {
           id: key,
-          timestamp: vuln.timestamp,
-          target_url: vuln.url,
+          timestamp: ts,
+          target_url: vuln.url || 'unknown',
           scan_types: ['XSS', 'SQLi', 'CSRF'], // Default scan types
           vulnerabilities: [],
           total_vulnerabilities: 0,

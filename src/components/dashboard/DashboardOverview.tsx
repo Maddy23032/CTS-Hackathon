@@ -32,7 +32,7 @@ export function DashboardOverview() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getVulnerabilities();
+  const response = await apiService.getVulnerabilitiesWithFallback();
       
       if (response.vulnerabilities) {
         const total = response.total || response.vulnerabilities.length;

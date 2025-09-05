@@ -1,16 +1,17 @@
-from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Query
+from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import asyncio
 import json
 import threading
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
 import os
 import sys
-import time
 from datetime import datetime
+from scanner import VulnerabilityScanner
+from real_time_scanner import RealTimeScanner
 
 # Add the backend directory to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +23,7 @@ from scanners.sqli_scanner import SQLiScanner
 from scanners.csrf_scanner import CSRFScanner
 from vuln_enrichment import groq_ai_enrich, enrich_finding
 from vulnerability import Vulnerability
+from oast_collaborator import oast_collaborator
 
 # Import MongoDB components
 from database import mongodb
@@ -30,14 +32,41 @@ from models import ScanDocument, VulnerabilityDocument, ScanLogEntry, ScanStatus
 
 app = FastAPI(title="VulnPy GUI API", version="1.0.0")
 
+# Load environment variables from .env if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 # MongoDB lifecycle management
 @app.on_event("startup")
 async def startup_event():
-    await mongodb.connect()
+    try:
+        await mongodb.connect()
+        print("✅ MongoDB connected successfully")
+    except Exception as e:
+        print(f"⚠️  MongoDB connection failed: {e}")
+        print("📝 Running in MongoDB-optional mode. Some features may be limited.")
+        
+    try:
+        await oast_collaborator.initialize()
+        print("✅ OAST collaborator initialized")
+    except Exception as e:
+        print(f"⚠️  OAST initialization failed: {e}")
+        
+    print("🚀 Server startup completed!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    await mongodb.close()
+    try:
+        await mongodb.close()
+    except:
+        pass
+    try:
+        await oast_collaborator.cleanup()
+    except:
+        pass
 
 # Enable CORS for the frontend
 app.add_middleware(
@@ -55,16 +84,33 @@ class ScanState:
         self.is_scanning: bool = False
         self.scan_progress: int = 0
         self.current_phase: str = "idle"
+        self.current_url: Optional[str] = None
+        self.current_payload: Optional[str] = None
+        self.start_time: Optional[datetime] = None
         self.vulnerabilities: List[Dict] = []
+        self.cancel_requested: bool = False
+        self.current_scanner: Optional[Any] = None
         self.scan_stats: Dict = {
             "urls_crawled": 0,
             "forms_found": 0,
             "requests_sent": 0,
             "vulnerabilities_found": 0,
-            "ai_calls_made": 0
+            "ai_calls_made": 0,
+        }
+        self.phase_details: Dict = {
+            "crawl_queue_size": 0,
+            "scan_queue_size": 0,
+            "current_depth": 0,
+            "max_depth": 3,
         }
         self.scan_log: List[Dict] = []
         self.scan_config: Dict = {}
+        
+    def get_elapsed_time(self) -> int:
+        """Get elapsed time in seconds since scan started"""
+        if self.start_time:
+            return int((datetime.now() - self.start_time).total_seconds())
+        return 0
 
 scan_state = ScanState()
 
@@ -79,6 +125,21 @@ class ScanRequest(BaseModel):
     verbose: bool = False
     max_depth: int = 3
     delay: float = 1.0
+
+class OASTConfig(BaseModel):
+    collaborator_url: str
+    auth_token: Optional[str] = None
+    enabled: bool = True
+
+class OASTCallbackData(BaseModel):
+    payload_id: str
+    source_ip: str
+    method: str
+    headers: Dict[str, str]
+    body: str
+    url: str
+    vulnerability_type: str
+    scan_id: Optional[str] = None
 
 class ScanResponse(BaseModel):
     scan_id: str
@@ -121,35 +182,206 @@ class ConnectionManager:
                 # Remove disconnected clients
                 if connection in self.active_connections:
                     self.active_connections.remove(connection)
+    
+    async def broadcast(self, message: dict):
+        """Broadcast message to all connected clients"""
+        await self.send_message(message)
 
 manager = ConnectionManager()
 
 def add_log_entry(message: str, level: str = "info", scan_id: str = None, phase: str = "general"):
-    """Add entry to scan log"""
+    """Add entry to scan log and broadcast it."""
     timestamp = datetime.now()
     log_entry = {
-        "timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": timestamp.isoformat(),
         "message": message,
-        "level": level
+        "level": level,
+        "phase": phase,
+        "scan_id": scan_id or scan_state.current_scan_id
     }
     scan_state.scan_log.append(log_entry)
-    
-    # Save to MongoDB if scan_id is provided
-    if scan_id:
-        log_document = ScanLogEntry(
-            scan_id=scan_id,
-            timestamp=timestamp,
-            level=level,
-            message=message,
-            phase=phase
+
+    # Broadcast the log entry via WebSocket
+    # This needs to run in the event loop.
+    async def broadcast_log():
+        try:
+            await manager.broadcast({
+                "type": "scan_log",
+                "data": log_entry
+            })
+        except Exception as e:
+            print(f"Error broadcasting log: {e}")
+
+    # Schedule the broadcast on the main event loop
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(broadcast_log())
+    except RuntimeError:  # No running loop
+        # This can happen if called from a non-async context.
+        # For simplicity, we'll just print. A more robust solution
+        # might involve a queue.
+        print(f"Log (no loop): {message}")
+
+
+    # Save to MongoDB if scan_id is provided and connection is available
+    if scan_id and mongodb.is_connected():
+        async def save_log_to_db():
+            try:
+                mongo_log_entry = ScanLogEntry(**log_entry)
+                await mongo_service.add_scan_log(mongo_log_entry)
+            except Exception as e:
+                print(f"MongoDB log saving error: {e}")
+        
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(save_log_to_db())
+        except RuntimeError:
+            pass # Cannot save to DB without a loop
+
+async def run_real_time_scan(scan_request: ScanRequest, scan_id: str):
+    """Run scan using the integrated RealTimeScanner and handle real-time updates."""
+    add_log_entry(
+        f"Initializing scan for {scan_request.target_url}",
+        "info",
+        scan_id,
+        "starting",
+    )
+
+    try:
+        # Callback for centralized logging
+        def log_handler(message, level="INFO", **kwargs):
+            current_scan_id = kwargs.get("scan_id", scan_id)
+            add_log_entry(message, level, current_scan_id)
+
+        # Initialize the real-time scanner with the log_callback
+        scanner = RealTimeScanner(
+            target_url=scan_request.target_url,
+            scan_types=scan_request.scan_types,
+            verbose=scan_request.verbose,
+            delay=scan_request.delay / 1000,  # Convert ms to seconds
+            websocket_manager=manager,
+            log_callback=log_handler,
         )
-        asyncio.create_task(mongo_service.add_scan_log(log_document))
-    
-    # Send log update via WebSocket
-    asyncio.create_task(manager.send_message({
-        "type": "log_update",
-        "entry": log_entry
-    }))
+        scanner.set_scan_id(scan_id)
+        scan_state.current_scanner = scanner
+
+        # Run the scan
+        vulnerabilities = await scanner.run_scan()
+
+        scan_state.is_scanning = False
+        scan_state.current_phase = "completed"
+        scan_state.scan_progress = 100
+
+        # Persist discovered vulnerabilities in memory for REST fallback
+        try:
+            scan_state.vulnerabilities = [
+                convert_finding_to_dict(v) if not isinstance(v, dict) else v
+                for v in vulnerabilities
+            ]
+        except Exception:
+            pass
+
+        # Update scan status in MongoDB
+        if mongodb.is_connected():
+            try:
+                await mongo_service.update_scan(
+                    scan_id,
+                    {
+                        "status": ScanStatus.COMPLETED,
+                        "vulnerabilities_found": len(vulnerabilities),
+                        "total_time": scan_state.get_elapsed_time(),
+                    },
+                )
+            except Exception as e:
+                print(f"MongoDB update scan error (continuing): {e}")
+
+        add_log_entry(
+            f"Scan completed. Found {len(vulnerabilities)} vulnerabilities.",
+            "info",
+            scan_id,
+            "completed",
+        )
+
+    except Exception as e:
+        scan_state.is_scanning = False
+        scan_state.current_phase = "error"
+        error_msg = f"Scan failed: {e}"
+        import traceback
+
+        traceback.print_exc()
+        add_log_entry(error_msg, "error", scan_id, "error")
+
+        # Update scan status in MongoDB
+        if mongodb.is_connected():
+            try:
+                await mongo_service.update_scan(
+                    scan_id,
+                    {"status": ScanStatus.FAILED, "error_message": error_msg},
+                )
+            except Exception as e:
+                print(f"MongoDB update scan (failed) error (continuing): {e}")
+
+        # Send error message via WebSocket
+        await manager.send_message(
+            {"type": "error", "message": error_msg, "scan_id": scan_id}
+        )
+    finally:
+        scan_state.current_scanner = None
+
+
+async def parse_scan_output(line: str):
+    """Parse CLI output and update scan state accordingly"""
+    try:
+        line_lower = line.lower()
+        
+        # Update current URL being processed
+        if "crawling:" in line_lower or "testing:" in line_lower:
+            # Extract URL from the line
+            if "http" in line:
+                import re
+                url_match = re.search(r'https?://[^\s]+', line)
+                if url_match:
+                    scan_state.current_url = url_match.group()
+        
+        # Update current payload being tested
+        if "payload:" in line_lower or "injecting:" in line_lower:
+            # Extract payload (usually after the URL or "payload:" keyword)
+            payload_start = line.find("payload:")
+            if payload_start > -1:
+                scan_state.current_payload = line[payload_start + 8:].strip()
+            elif "'" in line or "<" in line or "SELECT" in line.upper():
+                # Try to extract common payload patterns
+                scan_state.current_payload = line.split()[-1] if line.split() else None
+        
+        # Update statistics based on output
+        if "found form" in line_lower:
+            scan_state.scan_stats["forms_found"] += 1
+        elif "discovered" in line_lower and "url" in line_lower:
+            scan_state.scan_stats["urls_crawled"] += 1
+        elif "request sent" in line_lower or "testing parameter" in line_lower:
+            scan_state.scan_stats["requests_sent"] += 1
+        elif "vulnerability found" in line_lower or "xss detected" in line_lower or "sqli detected" in line_lower:
+            scan_state.scan_stats["vulnerabilities_found"] += 1
+        elif "ai analysis" in line_lower:
+            scan_state.scan_stats["ai_calls_made"] += 1
+        
+        # Update phase based on output
+        if "crawling" in line_lower:
+            scan_state.current_phase = "crawling"
+            scan_state.scan_progress = min(30, scan_state.scan_progress + 1)
+        elif "scanning" in line_lower or "testing" in line_lower:
+            scan_state.current_phase = "scanning"
+            scan_state.scan_progress = min(80, max(30, scan_state.scan_progress + 1))
+        elif "ai" in line_lower and "analysis" in line_lower:
+            scan_state.current_phase = "ai_analysis"
+            scan_state.scan_progress = min(95, max(80, scan_state.scan_progress + 1))
+        elif "completed" in line_lower or "finished" in line_lower:
+            scan_state.current_phase = "completed"
+            scan_state.scan_progress = 100
+            
+    except Exception as e:
+        print(f"[DEBUG] Error parsing output: {e}")
+        # Continue anyway, don't break the scan
 
 def convert_finding_to_dict(finding):
     """Convert finding object to dictionary for JSON serialization"""
@@ -188,15 +420,26 @@ async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTask
     scan_state.is_scanning = True
     scan_state.scan_progress = 0
     scan_state.current_phase = "starting"
+    scan_state.current_url = None
+    scan_state.current_payload = None
+    scan_state.start_time = datetime.now()
     scan_state.vulnerabilities = []
     scan_state.scan_log = []
     scan_state.scan_config = scan_request.dict()
+    scan_state.cancel_requested = False
+    scan_state.current_scanner = None
     scan_state.scan_stats = {
         "urls_crawled": 0,
         "forms_found": 0,
         "requests_sent": 0,
         "vulnerabilities_found": 0,
         "ai_calls_made": 0
+    }
+    scan_state.phase_details = {
+        "crawl_queue_size": 0,
+        "scan_queue_size": 0,
+        "current_depth": 0,
+        "max_depth": scan_request.max_depth
     }
     
     # Create scan document in MongoDB
@@ -219,11 +462,17 @@ async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTask
     )
     
     try:
-        await mongo_service.create_scan(scan_document)
-        add_log_entry(f"Starting scan for {scan_request.target_url}", "info", scan_id)
+        # Try to create scan document in MongoDB, but don't fail if it doesn't work
+        try:
+            await mongo_service.create_scan(scan_document)
+        except Exception as mongo_error:
+            print(f"MongoDB error (continuing anyway): {mongo_error}")
+            
+        # Simple log entry without MongoDB dependency  
+        print(f"[DEBUG] Starting scan for {scan_request.target_url}")
         
         # Start scan in background
-        background_tasks.add_task(run_scan, scan_request, scan_id)
+        background_tasks.add_task(run_real_time_scan, scan_request, scan_id)
         
         return ScanResponse(
             scan_id=scan_id,
@@ -231,11 +480,12 @@ async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTask
             message="Scan started successfully"
         )
     except Exception as e:
+        print(f"Scan start error: {e}")
         scan_state.is_scanning = False
         return ScanResponse(
             scan_id="",
             status="error",
-            message=f"Failed to create scan: {str(e)}"
+            message=f"Failed to start scan: {str(e)}"
         )
 
 @app.get("/api/scan/status")
@@ -245,7 +495,12 @@ async def get_scan_status():
         "is_scanning": scan_state.is_scanning,
         "progress": scan_state.scan_progress,
         "phase": scan_state.current_phase,
+        "current_url": scan_state.current_url,
+        "current_payload": scan_state.current_payload,
+        "start_time": scan_state.start_time.isoformat() if scan_state.start_time else None,
+        "elapsed_time": scan_state.get_elapsed_time(),
         "stats": scan_state.scan_stats,
+        "phase_details": scan_state.phase_details,
         "config": scan_state.scan_config
     }
 
@@ -364,9 +619,31 @@ async def stop_scan():
     if not scan_state.is_scanning:
         return {"status": "error", "message": "No scan is currently running"}
     
+    # Request cooperative cancellation
+    scan_state.cancel_requested = True
+    try:
+        scanner = scan_state.current_scanner
+        if scanner is not None and hasattr(scanner, 'cancel'):
+            scanner.cancel()
+    except Exception:
+        pass
+
     scan_state.is_scanning = False
     scan_state.current_phase = "stopped"
     add_log_entry("Scan stopped by user", "warning")
+
+    # Update MongoDB status if connected
+    if mongodb.is_connected() and scan_state.current_scan_id:
+        try:
+            await mongo_service.update_scan(
+                scan_state.current_scan_id,
+                {
+                    "status": ScanStatus.CANCELLED,
+                    "total_time": scan_state.get_elapsed_time(),
+                },
+            )
+        except Exception as e:
+            print(f"MongoDB update scan (cancelled) error (continuing): {e}")
     
     await manager.send_message({
         "type": "scan_stopped",
@@ -377,14 +654,19 @@ async def stop_scan():
 
 @app.get("/api/vulnerabilities")
 async def get_vulnerabilities():
+    # Build dynamic counts by vulnerability type to include all scanners
+    by_type: Dict[str, int] = {}
+    for v in scan_state.vulnerabilities:
+        try:
+            t = str(v.get("type", "unknown")).lower()
+        except Exception:
+            t = "unknown"
+        by_type[t] = by_type.get(t, 0) + 1
+
     return {
         "vulnerabilities": scan_state.vulnerabilities,
         "total": len(scan_state.vulnerabilities),
-        "by_type": {
-            "xss": len([v for v in scan_state.vulnerabilities if v["type"].lower() == "xss"]),
-            "sqli": len([v for v in scan_state.vulnerabilities if v["type"].lower() == "sqli"]),
-            "csrf": len([v for v in scan_state.vulnerabilities if v["type"].lower() == "csrf"])
-        }
+        "by_type": by_type,
     }
 
 @app.post("/api/ai/enrich")
@@ -426,6 +708,20 @@ async def enrich_vulnerabilities():
         add_log_entry(f"AI enrichment failed: {str(e)}", "error")
         return {"status": "error", "message": f"AI enrichment failed: {str(e)}"}
 
+# Add a simple WebSocket endpoint for real-time monitoring
+@app.websocket("/ws")
+async def websocket_scan_monitor(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and send heartbeat
+            await asyncio.sleep(10)
+            await websocket.send_text(json.dumps({"type": "heartbeat", "timestamp": datetime.now().isoformat()}))
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        manager.disconnect(websocket)
+
 @app.websocket("/ws/scan-updates")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -435,321 +731,157 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         manager.disconnect(websocket)
 
-# Background scan function
-async def run_scan(scan_request: ScanRequest, scan_id: str):
+# ==================== OAST ENDPOINTS ====================
+
+@app.post("/api/oast/configure")
+async def configure_oast(config: OASTConfig):
+    """Configure OAST collaborator settings"""
     try:
-        await manager.send_message({
-            "type": "scan_started",
-            "scan_id": scan_id,
-            "target": scan_request.target_url
-        })
+        oast_collaborator.collaborator_url = config.collaborator_url
+        oast_collaborator.auth_token = config.auth_token
         
-        # Phase 1: Crawling
-        scan_state.current_phase = "crawling"
-        scan_state.scan_progress = 10
-        add_log_entry("Starting website crawling...", "info", scan_id, "crawling")
-        
-        await manager.send_message({
-            "type": "phase_update",
-            "phase": "crawling",
-            "progress": 10
-        })
-        
-        # Initialize crawler
-        crawler = Crawler(scan_request.target_url, max_depth=scan_request.max_depth, verbose=scan_request.verbose)
-        attack_surface = crawler.crawl()
-        
-        scan_state.scan_stats["urls_crawled"] = len(attack_surface['urls'])
-        scan_state.scan_stats["forms_found"] = len(attack_surface['forms'])
-        
-        scan_state.scan_progress = 30
-        add_log_entry(f"Crawling complete: {len(attack_surface['urls'])} URLs, {len(attack_surface['forms'])} forms found")
-        
-        await manager.send_message({
-            "type": "crawling_complete",
-            "urls_found": len(attack_surface['urls']),
-            "forms_found": len(attack_surface['forms']),
-            "progress": 30
-        })
-        
-        # Phase 2: Vulnerability Scanning
-        scan_state.current_phase = "scanning"
-        scan_state.scan_progress = 40
-        add_log_entry("Starting vulnerability scanning...", "info", scan_id, "scanning")
-        
-        all_findings = []
-        
-        # Load payloads based on mode
-        payload_limit = 10 if scan_request.mode == "fast" else None
-        
-        # XSS Scanning
-        if "xss" in scan_request.scan_types and scan_state.is_scanning:
-            add_log_entry("Scanning for XSS vulnerabilities...", "info", scan_id, "scanning")
-            try:
-                with open('payloads/xss_payloads.txt', 'r') as f:
-                    xss_payloads = [line.strip() for line in f if line.strip()]
-                    if payload_limit:
-                        xss_payloads = xss_payloads[:payload_limit]
-                
-                # Create session for XSSScanner
-                import requests
-                session = requests.Session()
-                session.headers.update({'User-Agent': 'VulnPy GUI/1.0'})
-                
-                xss_scanner = XSSScanner(session, xss_payloads, verbose=scan_request.verbose)
-                xss_findings = xss_scanner.scan(attack_surface)
-                
-                for finding in xss_findings:
-                    enrich_finding(finding)
-                
-                xss_dicts = [convert_finding_to_dict(f) for f in xss_findings]
-                all_findings.extend(xss_dicts)
-                scan_state.vulnerabilities.extend(xss_dicts)
-                
-                # Save vulnerabilities to MongoDB
-                for vuln_dict in xss_dicts:
-                    vuln_document = VulnerabilityDocument(
-                        scan_id=scan_id,
-                        url=vuln_dict["url"],
-                        parameter=vuln_dict["parameter"],
-                        payload=vuln_dict["payload"],
-                        evidence=vuln_dict["evidence"],
-                        type=vuln_dict["type"],
-                        severity=vuln_dict["severity"],
-                        confidence=vuln_dict["confidence"],
-                        remediation=vuln_dict.get("remediation"),
-                        cvss_score=vuln_dict.get("cvss", 0.0),
-                        epss_score=vuln_dict.get("epss", 0.0),
-                        ai_summary=vuln_dict.get("ai_summary")
-                    )
-                    await mongo_service.create_vulnerability(vuln_document)
-                
-                add_log_entry(f"XSS scan complete: {len(xss_findings)} vulnerabilities found", "info", scan_id)
-                
-                await manager.send_message({
-                    "type": "vulnerabilities_found",
-                    "scanner": "XSS",
-                    "count": len(xss_findings),
-                    "vulnerabilities": xss_dicts
-                })
-            except Exception as e:
-                add_log_entry(f"XSS scanning error: {str(e)}", "error")
-        
-        scan_state.scan_progress = 60
-        
-        # SQLi Scanning
-        if "sqli" in scan_request.scan_types and scan_state.is_scanning:
-            add_log_entry("Scanning for SQL injection vulnerabilities...", "info", scan_id, "scanning")
-            try:
-                # Load SQLi payloads
-                import json
-                sqli_payloads = []
-                try:
-                    with open('payloads/sqli_payloads.json', 'r') as f:
-                        sqli_payloads = json.load(f)
-                        if payload_limit:
-                            sqli_payloads = sqli_payloads[:payload_limit]
-                except FileNotFoundError:
-                    add_log_entry("SQLi payloads file not found, using default payloads", "warning")
-                    sqli_payloads = ["' OR '1'='1' -- ", "\" OR \"1\"=\"1\" -- ", "' OR 1=1#"]
-                
-                # Create session for SQLiScanner
-                import requests
-                session = requests.Session()
-                session.headers.update({'User-Agent': 'VulnPy GUI/1.0'})
-                
-                sqli_scanner = SQLiScanner(session, sqli_payloads, verbose=scan_request.verbose)
-                sqli_findings = sqli_scanner.scan(attack_surface)
-                
-                for finding in sqli_findings:
-                    enrich_finding(finding)
-                
-                sqli_dicts = [convert_finding_to_dict(f) for f in sqli_findings]
-                all_findings.extend(sqli_dicts)
-                scan_state.vulnerabilities.extend(sqli_dicts)
-                
-                # Save vulnerabilities to MongoDB
-                for vuln_dict in sqli_dicts:
-                    vuln_document = VulnerabilityDocument(
-                        scan_id=scan_id,
-                        url=vuln_dict["url"],
-                        parameter=vuln_dict["parameter"],
-                        payload=vuln_dict["payload"],
-                        evidence=vuln_dict["evidence"],
-                        type=vuln_dict["type"],
-                        severity=vuln_dict["severity"],
-                        confidence=vuln_dict["confidence"],
-                        remediation=vuln_dict.get("remediation"),
-                        cvss_score=vuln_dict.get("cvss", 0.0),
-                        epss_score=vuln_dict.get("epss", 0.0),
-                        ai_summary=vuln_dict.get("ai_summary")
-                    )
-                    await mongo_service.create_vulnerability(vuln_document)
-                
-                add_log_entry(f"SQLi scan complete: {len(sqli_findings)} vulnerabilities found", "info", scan_id)
-                
-                await manager.send_message({
-                    "type": "vulnerabilities_found",
-                    "scanner": "SQLi",
-                    "count": len(sqli_findings),
-                    "vulnerabilities": sqli_dicts
-                })
-            except Exception as e:
-                add_log_entry(f"SQLi scanning error: {str(e)}", "error")
-        
-        scan_state.scan_progress = 80
-        
-        # CSRF Scanning
-        if "csrf" in scan_request.scan_types and scan_state.is_scanning:
-            add_log_entry("Scanning for CSRF vulnerabilities...", "info", scan_id, "scanning")
-            try:
-                # Create session for CSRFScanner
-                import requests
-                session = requests.Session()
-                session.headers.update({'User-Agent': 'VulnPy GUI/1.0'})
-                
-                csrf_scanner = CSRFScanner(session, verbose=scan_request.verbose)
-                csrf_findings = csrf_scanner.scan(attack_surface)
-                
-                for finding in csrf_findings:
-                    enrich_finding(finding)
-                
-                csrf_dicts = [convert_finding_to_dict(f) for f in csrf_findings]
-                all_findings.extend(csrf_dicts)
-                scan_state.vulnerabilities.extend(csrf_dicts)
-                
-                # Save vulnerabilities to MongoDB
-                for vuln_dict in csrf_dicts:
-                    vuln_document = VulnerabilityDocument(
-                        scan_id=scan_id,
-                        url=vuln_dict["url"],
-                        parameter=vuln_dict["parameter"],
-                        payload=vuln_dict["payload"],
-                        evidence=vuln_dict["evidence"],
-                        type=vuln_dict["type"],
-                        severity=vuln_dict["severity"],
-                        confidence=vuln_dict["confidence"],
-                        remediation=vuln_dict.get("remediation"),
-                        cvss_score=vuln_dict.get("cvss", 0.0),
-                        epss_score=vuln_dict.get("epss", 0.0),
-                        ai_summary=vuln_dict.get("ai_summary")
-                    )
-                    await mongo_service.create_vulnerability(vuln_document)
-                
-                add_log_entry(f"CSRF scan complete: {len(csrf_findings)} vulnerabilities found", "info", scan_id)
-                
-                await manager.send_message({
-                    "type": "vulnerabilities_found",
-                    "scanner": "CSRF",
-                    "count": len(csrf_findings),
-                    "vulnerabilities": csrf_dicts
-                })
-            except Exception as e:
-                add_log_entry(f"CSRF scanning error: {str(e)}", "error")
-        
-        scan_state.scan_stats["vulnerabilities_found"] = len(all_findings)
-        scan_state.scan_progress = 90
-        
-        # Phase 3: AI Enrichment (if requested)
-        if scan_request.ai_calls > 0 and all_findings and scan_state.is_scanning:
-            scan_state.current_phase = "ai_analysis"
-            add_log_entry(f"Starting AI enrichment for top {min(scan_request.ai_calls, len(all_findings))} vulnerabilities...")
-            
-            await manager.send_message({
-                "type": "phase_update",
-                "phase": "ai_analysis",
-                "progress": 90
-            })
-            
-            try:
-                # Convert dict findings back to Vulnerability objects for AI enrichment
-                vuln_objects = []
-                for finding_dict in all_findings:
-                    vuln = Vulnerability(
-                        vulnerability_type=finding_dict["type"],
-                        url=finding_dict["url"],
-                        parameter=finding_dict["parameter"],
-                        payload=finding_dict["payload"],
-                        evidence=finding_dict["evidence"],
-                        confidence=finding_dict.get("confidence", "Medium"),
-                        remediation=finding_dict.get("remediation", None),
-                        cvss=finding_dict.get("cvss", 0.0),
-                        epss=finding_dict.get("epss", 0.0),
-                        severity=finding_dict.get("severity", "Unknown"),
-                        ai_summary=finding_dict.get("ai_summary", None)
-                    )
-                    vuln_objects.append(vuln)
-                
-                # Perform AI enrichment
-                enriched_vulns = groq_ai_enrich(vuln_objects, scan_request.ai_calls)
-                
-                # Update the stored vulnerabilities with AI summaries
-                for i, vuln in enumerate(enriched_vulns):
-                    if i < len(scan_state.vulnerabilities):
-                        scan_state.vulnerabilities[i]["ai_summary"] = getattr(vuln, 'ai_summary', None)
-                        scan_state.vulnerabilities[i]["remediation"] = getattr(vuln, 'remediation', scan_state.vulnerabilities[i].get("remediation"))
-                        scan_state.vulnerabilities[i]["cvss"] = getattr(vuln, 'cvss', scan_state.vulnerabilities[i].get("cvss", 0.0))
-                        scan_state.vulnerabilities[i]["epss"] = getattr(vuln, 'epss', scan_state.vulnerabilities[i].get("epss", 0.0))
-                        scan_state.vulnerabilities[i]["severity"] = getattr(vuln, 'severity', scan_state.vulnerabilities[i].get("severity", "Unknown"))
-                
-                scan_state.scan_stats["ai_calls_made"] = min(scan_request.ai_calls, len(all_findings))
-                add_log_entry("AI enrichment completed")
-                
-                await manager.send_message({
-                    "type": "ai_enrichment_complete",
-                    "enriched_count": len([v for v in scan_state.vulnerabilities if v.get("ai_summary")])
-                })
-                
-            except Exception as e:
-                add_log_entry(f"AI enrichment error: {str(e)}", "error")
-        
-        # Scan complete
-        if scan_state.is_scanning:  # Only mark complete if not stopped
-            scan_state.current_phase = "complete"
-            scan_state.scan_progress = 100
-            add_log_entry(f"Scan completed: {len(all_findings)} total vulnerabilities found", "info", scan_id)
-            
-            # Update scan document in MongoDB
-            scan_update = {
-                "status": ScanStatus.COMPLETED,
-                "vulnerabilities_found": len(all_findings),
-                "stats": scan_state.scan_stats,
-                "total_time": None  # You might want to calculate this
+        return {
+            "status": "success",
+            "message": "OAST collaborator configured successfully",
+            "config": {
+                "collaborator_url": config.collaborator_url,
+                "enabled": config.enabled
             }
-            await mongo_service.update_scan(scan_id, scan_update)
-            
-            # Update analytics
-            await mongo_service.update_analytics()
-            
-            await manager.send_message({
-                "type": "scan_complete",
-                "total_vulnerabilities": len(all_findings),
-                "by_type": {
-                    "xss": len([v for v in all_findings if v["type"].lower() == "xss"]),
-                    "sqli": len([v for v in all_findings if v["type"].lower() == "sqli"]),
-                    "csrf": len([v for v in all_findings if v["type"].lower() == "csrf"])
-                },
-                "progress": 100
-            })
-        
-        scan_state.is_scanning = False
-        
-    except Exception as e:
-        scan_state.is_scanning = False
-        scan_state.current_phase = "error"
-        add_log_entry(f"Scan error: {str(e)}", "error", scan_id)
-        
-        # Update scan status as failed in MongoDB
-        scan_update = {
-            "status": ScanStatus.FAILED,
-            "error_message": str(e)
         }
-        await mongo_service.update_scan(scan_id, scan_update)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to configure OAST: {str(e)}")
+
+@app.get("/api/oast/status")
+async def get_oast_status():
+    """Get OAST collaborator status and statistics"""
+    try:
+        stats = oast_collaborator.get_statistics()
+        return {
+            "status": "active",
+            "collaborator_url": oast_collaborator.collaborator_url,
+            "statistics": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get OAST status: {str(e)}")
+
+@app.get("/api/oast/payloads")
+async def get_oast_payloads(
+    scan_id: Optional[str] = None,
+    vulnerability_type: Optional[str] = None
+):
+    """Get OAST payloads"""
+    try:
+        payloads = oast_collaborator.get_payloads(scan_id=scan_id, vulnerability_type=vulnerability_type)
+        return {
+            "status": "success",
+            "payloads": payloads,
+            "total": len(payloads)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get OAST payloads: {str(e)}")
+
+@app.get("/api/oast/callbacks")
+async def get_oast_callbacks(
+    payload_id: Optional[str] = None,
+    scan_id: Optional[str] = None
+):
+    """Get OAST callbacks"""
+    try:
+        callbacks = oast_collaborator.get_callbacks(payload_id=payload_id, scan_id=scan_id)
+        return {
+            "status": "success",
+            "callbacks": callbacks,
+            "total": len(callbacks)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get OAST callbacks: {str(e)}")
+
+@app.post("/api/oast/callback")
+async def register_oast_callback(request: Request):
+    """Register an OAST callback (webhook endpoint)"""
+    try:
+        # Get client IP
+        client_ip = request.client.host
         
-        await manager.send_message({
-            "type": "scan_error",
-            "error": str(e)
-        })
+        # Get request data
+        headers = dict(request.headers)
+        body = await request.body()
+        url = str(request.url)
+        method = request.method
+        
+        # Extract payload ID from URL or headers
+        payload_id = request.query_params.get("payload_id", "")
+        if not payload_id:
+            # Try to extract from URL path
+            url_parts = url.split("/")
+            if len(url_parts) > 5:
+                payload_id = url_parts[-1]
+        
+        callback_data = {
+            "payload_id": payload_id,
+            "source_ip": client_ip,
+            "method": method,
+            "headers": headers,
+            "body": body.decode("utf-8", errors="ignore"),
+            "url": url,
+            "vulnerability_type": "unknown"
+        }
+        
+        success = await oast_collaborator.register_callback(callback_data)
+        
+        if success:
+            # Send WebSocket notification for real-time updates
+            await manager.send_message({
+                "type": "oast_callback",
+                "payload_id": payload_id,
+                "source_ip": client_ip,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            return {"status": "success", "message": "Callback registered"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to register callback")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to register callback: {str(e)}")
+
+@app.post("/api/oast/generate")
+async def generate_oast_payloads(
+    vulnerability_type: str,
+    scan_id: Optional[str] = None
+):
+    """Generate OAST payloads for a specific vulnerability type"""
+    try:
+        if vulnerability_type == "xss":
+            payloads = oast_collaborator.generate_xss_payloads(scan_id=scan_id)
+        elif vulnerability_type == "sqli":
+            payloads = oast_collaborator.generate_sqli_payloads(scan_id=scan_id)
+        elif vulnerability_type == "command_injection":
+            payloads = oast_collaborator.generate_command_injection_payloads(scan_id=scan_id)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported vulnerability type: {vulnerability_type}")
+        
+        return {
+            "status": "success",
+            "vulnerability_type": vulnerability_type,
+            "payloads": payloads,
+            "count": len(payloads)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate payloads: {str(e)}")
+
+@app.delete("/api/oast/cleanup")
+async def cleanup_oast_data():
+    """Cleanup expired OAST payloads and callbacks"""
+    try:
+        cleaned_count = oast_collaborator.cleanup_expired_payloads()
+        return {
+            "status": "success",
+            "message": f"Cleaned up {cleaned_count} expired payloads",
+            "cleaned_count": cleaned_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup OAST data: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
