@@ -10,3 +10,5 @@ aiohttp
 motor
 pymongo
 python-dotenv
+reportlab
+aiofiles

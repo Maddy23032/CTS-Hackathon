@@ -477,8 +477,8 @@ class ApiService {
   /**
    * Download scan report (if implemented)
    */
-  async downloadReport(scanId: string, format: 'json' | 'csv' | 'pdf' = 'json'): Promise<Blob> {
-    const response = await fetch(`${API_BASE_URL}/api/scan/${scanId}/report?format=${format}`);
+  async downloadReport(scanId: string, format: 'json' | 'csv' | 'pdf' | 'html' = 'html'): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/api/scan/${scanId}/report?format=${format}&include_ai_analysis=true`);
     
     if (!response.ok) {
       throw new Error(`Failed to download report: ${response.statusText}`);

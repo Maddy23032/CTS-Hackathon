@@ -62,15 +62,41 @@ export function AIAnalysis() {
   const fetchAIAnalysis = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getVulnerabilitiesWithFallback();
-      const vulns = response.vulnerabilities || [];
+      let response = await apiService.getVulnerabilitiesWithFallback();
+      let vulns = response.vulnerabilities || [];
+      // If no ai_summary present try hitting real-time AI state endpoint
+    if (vulns.length && vulns.every((v: any) => !v.ai_summary)) {
+        try {
+      const base = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+      const fresh = await fetch(`${base}/api/ai/current`).then(r=>r.json());
+          if (fresh && Array.isArray(fresh.vulnerabilities) && fresh.vulnerabilities.length >= vulns.length) {
+            vulns = fresh.vulnerabilities as any;
+          }
+        } catch {}
+      }
       
-      setVulnerabilities(vulns);
+      // Map to expected shape for frontend
+      const mappedVulns = vulns.map((v: any, idx: number) => ({
+        id: v.id || String(idx),
+        type: String(v.type || ''),
+        url: String(v.url || ''),
+        parameter: v.parameter ? String(v.parameter) : '',
+        payload: v.payload ? String(v.payload) : '',
+        evidence: v.evidence ? String(v.evidence) : '',
+        remediation: v.remediation ? String(v.remediation) : '',
+        cvss: typeof v.cvss === 'number' ? v.cvss : 0,
+        cvss_version: v.cvss_version ? String(v.cvss_version) : undefined,
+        severity: String(v.severity || ''),
+        ai_summary: v.ai_summary ? String(v.ai_summary) : '',
+        confidence: v.confidence ? String(v.confidence) : '',
+        timestamp: v.timestamp ? String(v.timestamp) : '',
+      }));
+      setVulnerabilities(mappedVulns);
       
       // Calculate AI analysis statistics
-      const aiEnriched = vulns.filter(v => v.ai_summary || (v.remediation && v.remediation.length > 50 && !v.remediation.includes('best practices'))).length;
+  const aiEnriched = vulns.filter(v => v.ai_summary || (v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation))).length;
       const highConfidence = vulns.filter(v => v.confidence === 'High').length;
-      const recommendationsGenerated = vulns.filter(v => v.remediation && v.remediation.length > 50).length;
+  const recommendationsGenerated = vulns.filter(v => v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation)).length;
       const coverage = vulns.length > 0 ? Math.round((aiEnriched / vulns.length) * 100) : 0;
       
       setStats({
@@ -91,9 +117,45 @@ export function AIAnalysis() {
     try {
       setLoading(true);
       await apiService.triggerAIEnrichment();
-      // Refresh data after enrichment
-      setTimeout(() => {
-        fetchAIAnalysis();
+      // Force fetch from /api/ai/current after enrichment
+      setTimeout(async () => {
+        try {
+          const base = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+          const fresh = await fetch(`${base}/api/ai/current`).then(r=>r.json());
+          if (fresh && Array.isArray(fresh.vulnerabilities)) {
+            const mappedVulns = fresh.vulnerabilities.map((v: any, idx: number) => ({
+              id: v.id || String(idx),
+              type: String(v.type || ''),
+              url: String(v.url || ''),
+              parameter: v.parameter ? String(v.parameter) : '',
+              payload: v.payload ? String(v.payload) : '',
+              evidence: v.evidence ? String(v.evidence) : '',
+              remediation: v.remediation ? String(v.remediation) : '',
+              cvss: typeof v.cvss === 'number' ? v.cvss : 0,
+              cvss_version: v.cvss_version ? String(v.cvss_version) : undefined,
+              severity: String(v.severity || ''),
+              ai_summary: v.ai_summary ? String(v.ai_summary) : '',
+              confidence: v.confidence ? String(v.confidence) : '',
+              timestamp: v.timestamp ? String(v.timestamp) : '',
+            }));
+            setVulnerabilities(mappedVulns);
+            const aiEnriched = mappedVulns.filter(v => v.ai_summary && v.ai_summary.length > 0).length;
+            const highConfidence = mappedVulns.filter(v => v.confidence === 'High').length;
+            const recommendationsGenerated = mappedVulns.filter(v => v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation)).length;
+            const coverage = mappedVulns.length > 0 ? Math.round((aiEnriched / mappedVulns.length) * 100) : 0;
+            setStats({
+              total_vulnerabilities: mappedVulns.length,
+              ai_enriched: aiEnriched,
+              high_confidence: highConfidence,
+              recommendations_generated: recommendationsGenerated,
+              analysis_coverage: coverage
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch fresh AI analysis:', error);
+        } finally {
+          setLoading(false);
+        }
       }, 2000);
     } catch (error) {
       console.error('Failed to trigger AI enrichment:', error);
@@ -244,7 +306,7 @@ export function AIAnalysis() {
         </TabsList>
 
         <TabsContent value="enriched" className="space-y-4">
-          {vulnerabilities.filter(v => v.ai_summary).length === 0 ? (
+          {vulnerabilities.filter(v => v.ai_summary && v.ai_summary.length > 0).length === 0 ? (
             <Card className="bg-gradient-security border-border">
               <CardContent className="p-8 text-center">
                 <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -260,7 +322,7 @@ export function AIAnalysis() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {vulnerabilities.filter(v => v.ai_summary).map((vuln) => (
+              {vulnerabilities.filter(v => v.ai_summary && v.ai_summary.length > 0).map((vuln) => (
                 <Card key={vuln.id} className="bg-gradient-security border-border cursor-pointer hover:bg-secondary/20 transition-colors"
                       onClick={() => setSelectedVuln(vuln)}>
                   <CardHeader className="pb-3">
