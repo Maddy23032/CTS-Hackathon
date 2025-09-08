@@ -28,6 +28,7 @@ interface AIEnrichedVulnerability {
   evidence: string;
   remediation: string;
   cvss: number;
+  cvss_version?: string;
   severity: string;
   ai_summary?: string;
   confidence: string;
@@ -61,13 +62,13 @@ export function AIAnalysis() {
   const fetchAIAnalysis = async () => {
     try {
       setLoading(true);
-  const response = await apiService.getVulnerabilitiesWithFallback();
+      const response = await apiService.getVulnerabilitiesWithFallback();
       const vulns = response.vulnerabilities || [];
       
       setVulnerabilities(vulns);
       
       // Calculate AI analysis statistics
-      const aiEnriched = vulns.filter(v => v.ai_summary).length;
+      const aiEnriched = vulns.filter(v => v.ai_summary || (v.remediation && v.remediation.length > 50 && !v.remediation.includes('best practices'))).length;
       const highConfidence = vulns.filter(v => v.confidence === 'High').length;
       const recommendationsGenerated = vulns.filter(v => v.remediation && v.remediation.length > 50).length;
       const coverage = vulns.length > 0 ? Math.round((aiEnriched / vulns.length) * 100) : 0;
@@ -264,7 +265,7 @@ export function AIAnalysis() {
                       onClick={() => setSelectedVuln(vuln)}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <Badge className={getSeverityColor(vuln.severity)}>
                           {vuln.severity}
                         </Badge>
@@ -272,6 +273,11 @@ export function AIAnalysis() {
                           {vuln.confidence} Confidence
                         </Badge>
                         <span className="text-sm font-medium">{vuln.type}</span>
+                        {typeof vuln.cvss !== 'undefined' && (
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+                            CVSS {vuln.cvss_version ? `v${vuln.cvss_version}` : ''}: {vuln.cvss}
+                          </Badge>
+                        )}
                       </div>
                       <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                         <Brain className="h-3 w-3 mr-1" />
@@ -290,7 +296,7 @@ export function AIAnalysis() {
                         <div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
                             <Lightbulb className="h-3 w-3" />
-                            AI Summary
+                            AI Analysis
                           </p>
                           <p className="text-sm bg-blue-50 dark:bg-blue-950/20 p-3 rounded border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100">
                             {vuln.ai_summary}
@@ -317,10 +323,10 @@ export function AIAnalysis() {
                       </Badge>
                       <span className="text-sm font-medium">{vuln.type}</span>
                     </div>
-                    {vuln.ai_summary ? (
+          {vuln.ai_summary ? (
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        AI Analyzed
+            AI Analyzed
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">

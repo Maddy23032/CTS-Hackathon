@@ -18,6 +18,14 @@ import {
   Brain,
   Database
 } from 'lucide-react';
+import {
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import { apiService } from '@/lib/api';
 
 interface AnalyticsData {
@@ -27,8 +35,14 @@ interface AnalyticsData {
     xss: number;
     sqli: number;
     csrf: number;
-    lfi: number;
-    rfi: number;
+  ssrf: number;
+  security_misconfiguration: number;
+  vulnerable_components: number;
+  broken_access_control: number;
+  cryptographic_failures: number;
+  authentication_failures: number;
+  integrity_failures: number;
+  logging_monitoring_failures: number;
   };
   severity_breakdown: {
     high: number;
@@ -39,11 +53,6 @@ interface AnalyticsData {
     date: string;
     scans: number;
     vulnerabilities: number;
-  }>;
-  top_targets: Array<{
-    url: string;
-    scan_count: number;
-    vulnerability_count: number;
   }>;
   recent_activity: Array<{
     date: string;
@@ -70,18 +79,24 @@ export function Analysis() {
   const analyticsData = await apiService.getAnalytics(timeRange);
   const scanHistory = await apiService.getScanHistory();
   const vulnResp = await apiService.getVulnerabilitiesWithFallback();
-  const vulnerabilities = vulnResp.vulnerabilities;
+  const vulnerabilities = vulnResp.vulnerabilities || [];
       
       // Process the data for analytics
       const processedData: AnalyticsData = {
   total_scans: Array.isArray((scanHistory as any).scans) ? (scanHistory as any).scans.length : (Array.isArray(scanHistory) ? scanHistory.length : 0),
   total_vulnerabilities: vulnerabilities.length,
         vulnerability_breakdown: {
-          xss: vulnerabilities.filter((v: any) => v.type.toLowerCase() === 'xss').length,
-          sqli: vulnerabilities.filter((v: any) => v.type.toLowerCase() === 'sqli').length,
-          csrf: vulnerabilities.filter((v: any) => v.type.toLowerCase() === 'csrf').length,
-          lfi: vulnerabilities.filter((v: any) => v.type.toLowerCase() === 'lfi').length,
-          rfi: vulnerabilities.filter((v: any) => v.type.toLowerCase() === 'rfi').length,
+          xss: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'xss').length,
+          sqli: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'sqli').length,
+          csrf: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'csrf').length,
+          ssrf: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'ssrf').length,
+          security_misconfiguration: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'security_misconfiguration').length,
+          vulnerable_components: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'vulnerable_components').length,
+          broken_access_control: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'broken_access_control').length,
+          cryptographic_failures: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'cryptographic_failures').length,
+          authentication_failures: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'authentication_failures').length,
+          integrity_failures: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'integrity_failures').length,
+          logging_monitoring_failures: vulnerabilities.filter((v: any) => (v.type || '').toLowerCase() === 'logging_monitoring_failures').length,
         },
         severity_breakdown: {
           high: vulnerabilities.filter((v: any) => v.severity?.toLowerCase() === 'high').length,
@@ -89,7 +104,6 @@ export function Analysis() {
           low: vulnerabilities.filter((v: any) => v.severity?.toLowerCase() === 'low').length,
         },
   scan_trends: generateScanTrends(scanHistory.scans || []),
-  top_targets: generateTopTargets(scanHistory.scans || []),
   recent_activity: (scanHistory.scans || []).slice(0, 10).map((s: any) => ({
     date: s.created_at || new Date().toISOString(),
     type: s.status || 'scan',
@@ -125,28 +139,6 @@ export function Analysis() {
     })).slice(-7); // Last 7 days
   };
 
-  const generateTopTargets = (scans: any[]) => {
-    const targets: { [key: string]: { scan_count: number; vulnerability_count: number } } = {};
-    
-    scans.forEach(scan => {
-      const url = scan.target_url;
-      if (!targets[url]) {
-        targets[url] = { scan_count: 0, vulnerability_count: 0 };
-      }
-      targets[url].scan_count++;
-      targets[url].vulnerability_count += scan.vulnerabilities_found || 0;
-    });
-    
-    return Object.entries(targets)
-      .map(([url, data]) => ({
-        url,
-        scan_count: data.scan_count,
-        vulnerability_count: data.vulnerability_count
-      }))
-      .sort((a, b) => b.vulnerability_count - a.vulnerability_count)
-      .slice(0, 5);
-  };
-
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case 'high':
@@ -168,6 +160,22 @@ export function Analysis() {
         return 'bg-red-100 text-red-800 border-red-200';
       case 'csrf':
         return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'ssrf':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'security_misconfiguration':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'vulnerable_components':
+        return 'bg-teal-100 text-teal-800 border-teal-200';
+      case 'broken_access_control':
+        return 'bg-rose-100 text-rose-800 border-rose-200';
+      case 'cryptographic_failures':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'authentication_failures':
+        return 'bg-sky-100 text-sky-800 border-sky-200';
+      case 'integrity_failures':
+        return 'bg-stone-100 text-stone-800 border-stone-200';
+      case 'logging_monitoring_failures':
+        return 'bg-lime-100 text-lime-800 border-lime-200';
       default:
         return 'bg-blue-100 text-blue-800 border-blue-200';
     }
@@ -284,7 +292,6 @@ export function Analysis() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="vulnerabilities">Vulnerabilities</TabsTrigger>
-          <TabsTrigger value="targets">Targets</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
         </TabsList>
 
@@ -299,17 +306,64 @@ export function Analysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Pie Chart */}
+                <div className="w-full h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={Object.entries(analytics.vulnerability_breakdown).map(([type, count]) => ({
+                          name: ({
+                            xss: 'XSS', sqli: 'SQLi', csrf: 'CSRF', ssrf: 'SSRF',
+                            security_misconfiguration: 'Security Misconfiguration',
+                            vulnerable_components: 'Vulnerable Components',
+                            broken_access_control: 'Broken Access Control',
+                            cryptographic_failures: 'Cryptographic Failures',
+                            authentication_failures: 'Authentication Failures',
+                            integrity_failures: 'Integrity Failures',
+                            logging_monitoring_failures: 'Logging & Monitoring Failures',
+                          } as any)[type] || type,
+                          value: count as number,
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        label
+                      >
+                        {Object.entries(analytics.vulnerability_breakdown).map(([type], index) => (
+                          <Cell key={`cell-${type}`} fill={[ '#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b' ][index % 6]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(value: number) => [value, 'Count']} />
+                      <Legend verticalAlign="bottom" height={24} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Bars */}
                 {Object.entries(analytics.vulnerability_breakdown).map(([type, count]) => (
                   <div key={type} className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Badge className={getVulnTypeColor(type)}>
-                        {type.toUpperCase()}
+                        {({
+                          xss: 'XSS', sqli: 'SQLi', csrf: 'CSRF', ssrf: 'SSRF',
+                          security_misconfiguration: 'Security Misconfiguration',
+                          vulnerable_components: 'Vulnerable Components',
+                          broken_access_control: 'Broken Access Control',
+                          cryptographic_failures: 'Cryptographic Failures',
+                          authentication_failures: 'Authentication Failures',
+                          integrity_failures: 'Integrity Failures',
+                          logging_monitoring_failures: 'Logging & Monitoring Failures',
+                        } as any)[type] || type.toUpperCase()}
                       </Badge>
                       <span className="text-sm">{count} found</span>
                     </div>
                     <div className="w-24">
                       <Progress 
-                        value={(count / analytics.total_vulnerabilities) * 100} 
+                        value={analytics.total_vulnerabilities > 0 ? ((count / analytics.total_vulnerabilities) * 100) : 0} 
                         className="h-2"
                       />
                     </div>
@@ -390,39 +444,6 @@ export function Analysis() {
                 Detailed vulnerability analysis and trends will be displayed here.
                 This section will show vulnerability patterns, affected URLs, and remediation insights.
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="targets" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Top Vulnerable Targets
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analytics.top_targets.map((target, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-xs font-bold">{index + 1}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium font-mono">{target.url}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {target.scan_count} scans performed
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={target.vulnerability_count > 10 ? "destructive" : target.vulnerability_count > 5 ? "secondary" : "default"}>
-                      {target.vulnerability_count} vulns
-                    </Badge>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -38,17 +38,17 @@ async def check_database_details():
                     doc_count = await col.count_documents({})
                     print(f"      📄 {collection}: {doc_count} documents")
         
-        # Check specifically for VulnPy database
-        print("\n🎯 VulnPy Database Status:")
-        vulnpy_db_name = "vulnpy_db"  # This is what's configured in database.py
+        # Check specifically for VulnScan database
+        print("\n🎯 VulnScan Database Status:")
+        VulnScan_db_name = "VulnScan_db"  # This is what's configured in database.py
         
-        if vulnpy_db_name in db_list:
-            print(f"   ✅ Database '{vulnpy_db_name}' EXISTS")
-            db = client[vulnpy_db_name]
+        if VulnScan_db_name in db_list:
+            print(f"   ✅ Database '{VulnScan_db_name}' EXISTS")
+            db = client[VulnScan_db_name]
             collections = await db.list_collection_names()
             
             if collections:
-                print(f"   📊 Collections in {vulnpy_db_name}:")
+                print(f"   📊 Collections in {VulnScan_db_name}:")
                 for collection in collections:
                     col = db[collection]
                     doc_count = await col.count_documents({})
@@ -63,15 +63,15 @@ async def check_database_details():
                                 del sample['_id']
                             print(f"         Sample: {str(sample)[:100]}...")
             else:
-                print(f"   ℹ️  Database '{vulnpy_db_name}' exists but has no collections")
+                print(f"   ℹ️  Database '{VulnScan_db_name}' exists but has no collections")
         else:
-            print(f"   ℹ️  Database '{vulnpy_db_name}' does not exist yet")
+            print(f"   ℹ️  Database '{VulnScan_db_name}' does not exist yet")
             print("   📝 It will be created automatically when first scan is run")
         
         # Show configuration details
         print(f"\n⚙️  Configuration Details:")
         print(f"   📍 Database Location: MongoDB data directory")
-        print(f"   📋 Database Name: {vulnpy_db_name}")
+        print(f"   📋 Database Name: {VulnScan_db_name}")
         print(f"   🔗 Connection String: mongodb://localhost:27017")
         print(f"   📁 Config File: backend/database.py")
         

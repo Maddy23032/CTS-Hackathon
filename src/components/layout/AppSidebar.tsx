@@ -6,7 +6,6 @@ import {
   FileText, 
   Settings, 
   Brain,
-  Target,
   BarChart3,
   AlertTriangle,
   Globe
@@ -30,10 +29,9 @@ const navigationItems = [
   { title: 'Vulnerabilities', url: '/vulnerabilities', icon: AlertTriangle },
   { title: 'Reports', url: '/reports', icon: FileText },
   { title: 'AI Analysis', url: '/ai', icon: Brain },
-  { title: 'Targets', url: '/targets', icon: Target },
   { title: 'OAST', url: '/oast', icon: Globe },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
-  { title: 'Settings', url: '/settings', icon: Settings },
+  // Settings removed per request
 ];
 
 export function AppSidebar() {
@@ -59,7 +57,7 @@ export function AppSidebar() {
             </div>
             {!isCollapsed && (
               <div>
-                <h1 className="text-xl font-bold text-foreground">VulnPy</h1>
+                <h1 className="text-xl font-bold text-foreground">VulnScan</h1>
                 <p className="text-sm text-muted-foreground">Security Scanner</p>
               </div>
             )}

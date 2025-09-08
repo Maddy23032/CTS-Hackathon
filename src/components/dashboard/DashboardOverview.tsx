@@ -82,7 +82,7 @@ export function DashboardOverview() {
             <RefreshCw className={`h-4 w-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
           </button>
           <Badge className="bg-gradient-primary text-primary-foreground px-4 py-2">
-            VulnPy Scanner v2.0
+            VulnScan Scanner v2.0
           </Badge>
         </div>
       </div>
@@ -136,20 +136,7 @@ export function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-ai border-border hover:shadow-glow-ai transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              AI Calls Made
-            </CardTitle>
-            <Brain className="h-4 w-4 text-ai-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.aiAnalysisComplete}</div>
-            <p className="text-xs text-ai-primary">
-              Enhanced with Groq AI
-            </p>
-          </CardContent>
-        </Card>
+  {/* Removed AI Calls Made card per request */}
       </div>
 
       {/* Current Scan Progress */}
@@ -234,12 +221,24 @@ export function DashboardOverview() {
               {/* Vulnerability Type Breakdown */}
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Vulnerability Types Found:</p>
-                {Object.entries(vulnerabilityStats.byType).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between p-2 rounded bg-card border border-border">
-                    <span className="text-sm text-foreground capitalize">{type}</span>
-                    <Badge variant="outline">{count}</Badge>
-                  </div>
-                ))}
+                {Object.entries(vulnerabilityStats.byType).map(([type, count]) => {
+                  const LABELS: Record<string,string> = {
+                    broken_access_control: 'Broken Access Control',
+                    cryptographic_failures: 'Cryptographic Failures',
+                    authentication_failures: 'Authentication Failures',
+                    integrity_failures: 'Integrity Failures',
+                    logging_monitoring_failures: 'Logging & Monitoring Failures',
+                    security_misconfiguration: 'Security Misconfiguration',
+                    vulnerable_components: 'Vulnerable Components',
+                  };
+                  const display = LABELS[type] || type;
+                  return (
+                    <div key={type} className="flex items-center justify-between p-2 rounded bg-card border border-border">
+                      <span className="text-sm text-foreground">{display}</span>
+                      <Badge variant="outline">{count}</Badge>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

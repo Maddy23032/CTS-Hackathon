@@ -1,5 +1,5 @@
 # database.py
-# MongoDB configuration and connection for VulnPy GUI
+# MongoDB configuration and connection for VulnScan GUI
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING, DESCENDING
@@ -19,7 +19,7 @@ class MongoDB:
         """Connect to MongoDB"""
         try:
             self.client = AsyncIOMotorClient(self.connection_string)
-            self.db = self.client["vulnpy_db"]
+            self.db = self.client["VulnScan_db"]
             
             # Test connection
             await self.client.admin.command('ping')

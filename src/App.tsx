@@ -10,8 +10,7 @@ import Vulnerabilities from "./pages/Vulnerabilities";
 import Reports from "./pages/Reports";
 import { AIAnalysis } from "./pages/AIAnalysis";
 import { OASTManager } from "./components/scanner/OASTManager";
-import { Targets } from "./components/targets/Targets";
-import { Analysis } from "./components/analysis/Analysis";
+import { Analytics } from "./components/analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,14 +52,9 @@ const App = () => (
               <OASTManager />
             </MainLayout>
           } />
-          <Route path="/targets" element={
-            <MainLayout>
-              <Targets />
-            </MainLayout>
-          } />
           <Route path="/analytics" element={
             <MainLayout>
-              <Analysis />
+              <Analytics />
             </MainLayout>
           } />
           <Route path="/settings" element={

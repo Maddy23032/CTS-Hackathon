@@ -21,6 +21,11 @@ from crawler import Crawler
 from scanners.xss_scanner import XSSScanner
 from scanners.sqli_scanner import SQLiScanner
 from scanners.csrf_scanner import CSRFScanner
+from scanners.broken_access_control_scanner import BrokenAccessControlScanner
+from scanners.cryptographic_failures_scanner import CryptographicFailuresScanner
+from scanners.auth_failures_scanner import AuthenticationFailuresScanner
+from scanners.integrity_failures_scanner import IntegrityFailuresScanner
+from scanners.logging_monitoring_failures_scanner import LoggingMonitoringFailuresScanner
 from vuln_enrichment import groq_ai_enrich, enrich_finding
 from vulnerability import Vulnerability
 from oast_collaborator import oast_collaborator
@@ -30,7 +35,7 @@ from database import mongodb
 from mongo_service import mongo_service
 from models import ScanDocument, VulnerabilityDocument, ScanLogEntry, ScanStatus
 
-app = FastAPI(title="VulnPy GUI API", version="1.0.0")
+app = FastAPI(title="VulnScan GUI API", version="1.0.0")
 
 # Load environment variables from .env if present
 try:
@@ -118,10 +123,19 @@ scan_state = ScanState()
 class ScanRequest(BaseModel):
     target_url: str
     scan_types: List[str] = ["xss", "sqli", "csrf"]
+    # Extend default scan types to include new categories
+    scan_types: List[str] = [
+        "xss", "sqli", "csrf",
+        "broken_access_control",
+        "cryptographic_failures",
+        "authentication_failures",
+        "integrity_failures",
+        "logging_monitoring_failures"
+    ]
     mode: str = "fast"  # fast or full
     headless: bool = False
     oast: bool = False
-    ai_calls: int = 30
+    ai_calls: int = 0
     verbose: bool = False
     max_depth: int = 3
     delay: float = 1.0
@@ -148,7 +162,7 @@ class ScanResponse(BaseModel):
 
 class VulnerabilityResponse(BaseModel):
     id: str
-    type: str
+    type: str  # plain string to support new dynamic categories
     url: str
     parameter: str
     payload: str
@@ -156,7 +170,7 @@ class VulnerabilityResponse(BaseModel):
     remediation: str
     cvss: float
     epss: float
-    severity: str
+    severity: str  # plain string now
     ai_summary: Optional[str] = None
     confidence: str
     timestamp: str
@@ -261,6 +275,8 @@ async def run_real_time_scan(scan_request: ScanRequest, scan_id: str):
             delay=scan_request.delay / 1000,  # Convert ms to seconds
             websocket_manager=manager,
             log_callback=log_handler,
+            enable_oast=scan_request.oast,
+            headless=scan_request.headless,
         )
         scanner.set_scan_id(scan_id)
         scan_state.current_scanner = scanner
@@ -404,7 +420,7 @@ def convert_finding_to_dict(finding):
 # API Endpoints
 @app.get("/")
 async def root():
-    return {"message": "VulnPy GUI API Server", "status": "running", "version": "1.0.0"}
+    return {"message": "VulnScan GUI API Server", "status": "running", "version": "1.0.0"}
 
 @app.post("/api/scan/start", response_model=ScanResponse)
 async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTasks):
@@ -614,6 +630,46 @@ async def update_analytics(date: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update analytics: {str(e)}")
 
+@app.post("/api/analytics/rebuild")
+async def rebuild_analytics(days: int = 90):
+    """Recompute analytics documents for the past N days (default 90). Useful after adding new vuln categories."""
+    try:
+        from datetime import timedelta, datetime as dt
+        rebuilt = []
+        for i in range(days):
+            date = (dt.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+            await mongo_service.update_analytics(date)
+            rebuilt.append(date)
+        return {"status": "success", "rebuilt_days": len(rebuilt), "days": rebuilt[:10] + (["..."] if len(rebuilt) > 10 else [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to rebuild analytics: {str(e)}")
+
+@app.post("/api/analytics/refresh_for_scan/{scan_id}")
+async def refresh_analytics_for_scan(scan_id: str):
+    """Convenience endpoint: determine the scan's date and update that day's analytics."""
+    try:
+        if not mongodb.is_connected():
+            raise HTTPException(status_code=400, detail="MongoDB not connected")
+        from database import mongodb as _mdb
+        scan_doc = await _mdb.db.scans.find_one({"scan_id": scan_id})
+        if not scan_doc:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        date = scan_doc.get("created_at")
+        if date:
+            try:
+                date_str = date.strftime("%Y-%m-%d")
+            except Exception:
+                # if already string
+                date_str = str(date)[:10]
+        else:
+            date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        await mongo_service.update_analytics(date_str)
+        return {"status": "success", "message": f"Analytics refreshed for {date_str}", "scan_id": scan_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to refresh analytics for scan: {str(e)}")
+
 @app.post("/api/scan/stop")
 async def stop_scan():
     if not scan_state.is_scanning:
@@ -654,7 +710,35 @@ async def stop_scan():
 
 @app.get("/api/vulnerabilities")
 async def get_vulnerabilities():
-    # Build dynamic counts by vulnerability type to include all scanners
+    # Try to get all vulnerabilities from MongoDB first (for historical data)
+    try:
+        # Get all vulnerabilities from MongoDB (not just latest scan)
+        mongo_vulns = await mongo_service.get_vulnerabilities()  # Get all vulnerabilities
+        
+        if mongo_vulns and len(mongo_vulns) > 0:
+            # Build dynamic counts by vulnerability type
+            by_type: Dict[str, int] = {}
+            for v in mongo_vulns:
+                try:
+                    # Handle both dict and object formats
+                    if hasattr(v, 'type'):
+                        t = str(v.type).lower()
+                    else:
+                        t = str(v.get("type", "unknown")).lower()
+                except Exception:
+                    t = "unknown"
+                by_type[t] = by_type.get(t, 0) + 1
+            
+            return {
+                "vulnerabilities": mongo_vulns,
+                "total": len(mongo_vulns),
+                "by_type": by_type,
+            }
+    except Exception as e:
+        print(f"Error fetching from MongoDB: {e}")
+        # Fall back to in-memory cache
+
+    # Fallback to in-memory cache
     by_type: Dict[str, int] = {}
     for v in scan_state.vulnerabilities:
         try:
@@ -676,36 +760,60 @@ async def enrich_vulnerabilities():
     
     try:
         add_log_entry("Starting AI enrichment...", "info", None, "enriching")
-        
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            # Provide placeholder remediation if missing
+            placeholders_added = 0
+            for v in scan_state.vulnerabilities:
+                if not v.get("remediation"):
+                    v_type = v.get("type", "vulnerability")
+                    v["remediation"] = f"AI remediation unavailable (missing GROQ_API_KEY). Apply best practices to mitigate {v_type}."
+                    placeholders_added += 1
+            add_log_entry(f"GROQ_API_KEY not set; skipped external AI calls (placeholders added: {placeholders_added})", "warning", None, "enriching")
+            await manager.send_message({
+                "type": "ai_enrichment_skipped",
+                "message": "AI enrichment skipped (missing GROQ_API_KEY). Placeholder remediation added where absent.",
+                "enriched_count": 0,
+                "placeholders_added": placeholders_added
+            })
+            return {"status": "skipped", "message": "AI enrichment skipped (missing GROQ_API_KEY)."}
+
         # Convert dict back to finding objects for AI enrichment
         class MockFinding:
             def __init__(self, vuln_dict):
-                self.vulnerability_type = vuln_dict["type"]
-                self.url = vuln_dict["url"]
-                self.parameter = vuln_dict["parameter"]
-                self.payload = vuln_dict["payload"]
-                self.evidence = vuln_dict["evidence"]
-                self.confidence = vuln_dict["confidence"]
-        
+                self.vulnerability_type = vuln_dict.get("type")
+                self.url = vuln_dict.get("url")
+                self.parameter = vuln_dict.get("parameter")
+                self.payload = vuln_dict.get("payload")
+                self.evidence = vuln_dict.get("evidence")
+                self.confidence = vuln_dict.get("confidence")
+
         mock_findings = [MockFinding(v) for v in scan_state.vulnerabilities]
         enriched_findings = groq_ai_enrich(mock_findings)
-        
-        # Update the stored vulnerabilities with AI summaries
+
+        # Update stored vulnerabilities with (possibly improved) remediation text
+        updated = 0
         for i, finding in enumerate(enriched_findings):
-            if hasattr(finding, 'ai_summary'):
-                scan_state.vulnerabilities[i]["ai_summary"] = finding.ai_summary
-        
+            if hasattr(finding, 'remediation') and finding.remediation:
+                scan_state.vulnerabilities[i]["remediation"] = finding.remediation
+                # Also set ai_summary to match what MongoDB has
+                if hasattr(finding, 'ai_summary') and finding.ai_summary:
+                    scan_state.vulnerabilities[i]["ai_summary"] = finding.ai_summary
+                else:
+                    # Set a default ai_summary to indicate AI enrichment
+                    vuln_type = scan_state.vulnerabilities[i].get("type", "vulnerability")
+                    scan_state.vulnerabilities[i]["ai_summary"] = f"AI-enhanced {vuln_type} remediation"
+                updated += 1
+
         add_log_entry("AI enrichment completed", "info", None, "enriching")
-        
         await manager.send_message({
             "type": "ai_enrichment_complete",
-            "message": "AI enrichment completed",
-            "enriched_count": len(enriched_findings)
+            "message": "AI remediation enrichment completed",
+            "enriched_count": updated
         })
-        
-        return {"status": "success", "message": "AI enrichment completed"}
+        return {"status": "success", "message": "AI remediation enrichment completed", "enriched_count": updated}
     except Exception as e:
-        add_log_entry(f"AI enrichment failed: {str(e)}", "error")
+        add_log_entry(f"AI enrichment failed: {str(e)}", "error", None, "enriching")
         return {"status": "error", "message": f"AI enrichment failed: {str(e)}"}
 
 # Add a simple WebSocket endpoint for real-time monitoring
@@ -885,7 +993,7 @@ async def cleanup_oast_data():
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting VulnPy GUI API Server...")
+    print("Starting VulnScan GUI API Server...")
     print("Backend will be available at: http://localhost:8000")
     print("API docs available at: http://localhost:8000/docs")
     uvicorn.run("api_server:app", host="0.0.0.0", port=8000, reload=False)

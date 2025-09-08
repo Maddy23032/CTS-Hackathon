@@ -28,22 +28,22 @@ async def check_mongodb_status():
         
         # Check if our database exists
         db_list = await client.list_database_names()
-        if 'vulnpy' in db_list:
-            print("✅ VulnPy database exists")
+        if 'VulnScan' in db_list:
+            print("✅ VulnScan database exists")
             
             # Check collections
-            db = client.vulnpy
+            db = client.VulnScan
             collections = await db.list_collection_names()
             if collections:
                 print(f"✅ Collections found: {', '.join(collections)}")
             else:
                 print("ℹ️  No collections yet (will be created on first use)")
         else:
-            print("ℹ️  VulnPy database will be created on first use")
+            print("ℹ️  VulnScan database will be created on first use")
         
         await client.close()
         
-        print("\n🎉 MongoDB is ready for VulnPy integration!")
+        print("\n🎉 MongoDB is ready for VulnScan integration!")
         return True
         
     except Exception as e:

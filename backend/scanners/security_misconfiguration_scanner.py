@@ -83,7 +83,7 @@ class SecurityMisconfigurationScanner:
         self.scan_id = None
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'VulnPy Security Scanner/1.0'
+            'User-Agent': 'VulnScan Security Scanner/1.0'
         })
         
     def set_scan_id(self, scan_id: str):

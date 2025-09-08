@@ -39,12 +39,13 @@ class AttackSurfaceItem(BaseModel):
 
 class VulnerabilityDocument(BaseModel):
     scan_id: str
-    type: VulnerabilityType
+    # Accept any string to allow newly added categories without enum update
+    type: str
     url: str
     parameter: Optional[str] = None
     payload: Optional[str] = None
     evidence: str
-    severity: SeverityLevel = SeverityLevel.MEDIUM
+    severity: str = "medium"
     cvss_score: Optional[float] = None
     epss_score: Optional[float] = None
     confidence: Optional[str] = None
@@ -73,7 +74,7 @@ class ScanDocument(BaseModel):
     # Scan configuration
     max_depth: int = 3
     max_pages: int = 50
-    ai_calls: int = 30
+    ai_calls: int = 0
     use_oast: bool = False
     
     # Timestamps
@@ -103,7 +104,6 @@ class AnalyticsDocument(BaseModel):
     failed_scans: int = 0
     vulnerabilities_found: Dict[str, int] = {}  # by type
     severity_distribution: Dict[str, int] = {}  # by severity
-    top_targets: List[Dict[str, Any]] = []  # most scanned targets
     avg_scan_time: Optional[float] = None
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -114,7 +114,7 @@ class ScanRequest(BaseModel):
     mode: str = "fast"
     max_depth: int = 3
     max_pages: int = 50
-    ai_calls: int = 30
+    ai_calls: int = 0
     use_oast: bool = False
     cookies: Optional[str] = None
 

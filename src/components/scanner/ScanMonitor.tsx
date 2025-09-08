@@ -52,6 +52,71 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
   const [vulns, setVulns] = useState<Vulnerability[]>([]);
   const [historyDurationSec, setHistoryDurationSec] = useState<number | null>(null);
 
+  // --- Persistence helpers (localStorage) ---
+  const getStoreKey = (scanId?: string | null) =>
+    scanId ? `scan.monitor.state.${scanId}` : 'scan.monitor.state.current';
+
+  const saveState = (scanId?: string | null) => {
+    try {
+      const key = getStoreKey(scanId ?? scanStatus.scan_id);
+      const payload = {
+        scan_id: scanId ?? scanStatus.scan_id,
+        target_url: scanRequest?.target_url,
+        start_time: startTime ? startTime.toISOString() : undefined,
+        logs: scanLogs.slice(0, 500).map(l => ({
+          id: l.id,
+          timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp,
+          level: l.level,
+          phase: l.phase,
+          message: l.message,
+          details: l.details,
+        })),
+        urls: urlsFound.slice(-500),
+        current_url: currentUrl,
+        current_payload: currentPayload,
+        vulns: vulns.slice(0, 500),
+        last_saved: new Date().toISOString(),
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch {}
+  };
+
+  const tryRestoreState = () => {
+    try {
+      const keyPreferred = getStoreKey(scanStatus.scan_id);
+      const keyFallback = getStoreKey();
+      const raw = localStorage.getItem(keyPreferred) || localStorage.getItem(keyFallback);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (parsed.start_time && !startTime) {
+        const dt = new Date(parsed.start_time);
+        if (!isNaN(dt.getTime())) setStartTime(dt);
+      }
+      if (Array.isArray(parsed.logs) && parsed.logs.length > 0 && scanLogs.length === 0) {
+        const restoredLogs: ScanLog[] = parsed.logs.map((l: any) => ({
+          id: l.id || Math.random().toString(36).substr(2, 9),
+          timestamp: new Date(l.timestamp),
+          level: l.level,
+          phase: l.phase,
+          message: l.message,
+          details: l.details,
+        }));
+        setScanLogs(restoredLogs);
+      }
+      if (Array.isArray(parsed.urls) && parsed.urls.length > 0 && urlsFound.length === 0) {
+        setUrlsFound(parsed.urls);
+      }
+      if (parsed.current_url && !currentUrl) setCurrentUrl(parsed.current_url);
+      if (parsed.current_payload && !currentPayload) setCurrentPayload(parsed.current_payload);
+      if (Array.isArray(parsed.vulns) && parsed.vulns.length > 0 && vulns.length === 0) {
+        setVulns(parsed.vulns);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   // Load data for "View Last Scan" (when not actively scanning)
   useEffect(() => {
     const loadScanHistory = async () => {
@@ -61,6 +126,40 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
           const scanHistoryResponse = await apiService.getScanHistory({ page: 1, per_page: 1 });
           if (scanHistoryResponse.scans.length > 0) {
             const lastScan = scanHistoryResponse.scans[0];
+            // Load detailed logs and vulnerabilities for the last scan
+            try {
+              const details = await apiService.getScanDetails(lastScan.scan_id);
+              if (details?.logs) {
+                const formatted: ScanLog[] = details.logs.map((l: any) => ({
+                  id: Math.random().toString(36).substr(2, 9),
+                  timestamp: new Date(l.timestamp),
+                  level: (l.level || 'info') as ScanLog['level'],
+                  phase: (l.phase || 'general') as string,
+                  message: l.message,
+                }));
+                setScanLogs(formatted);
+              }
+              if (details?.vulnerabilities?.vulnerabilities) {
+                const mapped = (details.vulnerabilities.vulnerabilities as any[]).map(v => ({
+                  id: v._id || v.id || Math.random().toString(36).substr(2, 9),
+                  type: v.type,
+                  url: v.url,
+                  parameter: v.parameter,
+                  payload: v.payload,
+                  evidence: v.evidence || '',
+                  remediation: v.remediation || '',
+                  cvss: typeof v.cvss_score === 'number' ? v.cvss_score : (v.cvss || 0),
+                  epss: typeof v.epss_score === 'number' ? v.epss_score : (v.epss || 0),
+                  severity: v.severity || 'Medium',
+                  ai_summary: v.ai_summary,
+                  confidence: v.confidence || 'Medium',
+                  timestamp: v.created_at || new Date().toISOString(),
+                })) as Vulnerability[];
+                setVulns(mapped);
+              }
+            } catch (e) {
+              // Fall back silently if details endpoint fails
+            }
             
             // Compute a fixed duration for completed scans
             let durationSec: number | null = null;
@@ -88,15 +187,18 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
             
             // Load scan logs if available
             try {
-              const logsResponse = await apiService.getScanLogs();
-              const formattedLogs: ScanLog[] = logsResponse.logs.map((log: any) => ({
-                id: log.id || Math.random().toString(36).substr(2, 9),
-                timestamp: new Date(log.timestamp),
-                level: (log.level || 'info') as ScanLog['level'],
-                phase: log.phase || 'general',
-                message: log.message
-              }));
-              setScanLogs(formattedLogs);
+              // Keep compatibility: if details not available, use generic logs endpoint
+              if (scanLogs.length === 0) {
+                const logsResponse = await apiService.getScanLogs();
+                const formattedLogs: ScanLog[] = logsResponse.logs.map((log: any) => ({
+                  id: log.id || Math.random().toString(36).substr(2, 9),
+                  timestamp: new Date(log.timestamp),
+                  level: (log.level || 'info') as ScanLog['level'],
+                  phase: log.phase || 'general',
+                  message: log.message
+                }));
+                setScanLogs(formattedLogs);
+              }
             } catch (error) {
               console.error('Failed to load scan logs:', error);
             }
@@ -143,6 +245,50 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
       if (interval) clearInterval(interval);
     };
   }, [startTime, scanStatus.start_time, scanStatus.is_scanning, isOpen]);
+
+  // Attempt to restore persisted state when opening during an active scan
+  useEffect(() => {
+    if (isOpen && scanStatus.is_scanning) {
+      tryRestoreState();
+    }
+  }, [isOpen, scanStatus.is_scanning, scanStatus.scan_id]);
+
+  // While scanning, also fetch current backend logs/vulns on open to backfill gaps
+  useEffect(() => {
+    if (!(isOpen && scanStatus.is_scanning)) return;
+    (async () => {
+      try {
+        const logsResponse = await apiService.getScanLogs();
+        if (Array.isArray(logsResponse.logs)) {
+          const fetched: ScanLog[] = logsResponse.logs.map((log: any) => ({
+            id: log.id || Math.random().toString(36).substr(2, 9),
+            timestamp: new Date(log.timestamp),
+            level: (log.level || 'info') as ScanLog['level'],
+            phase: log.phase || 'general',
+            message: log.message,
+          }));
+          // Merge with existing and dedupe by message+timestamp
+          const keyOf = (l: ScanLog) => `${l.message}|${l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp}`;
+          const map = new Map<string, ScanLog>();
+          [...fetched, ...scanLogs].forEach(l => map.set(keyOf(l), l));
+          const merged = Array.from(map.values()).sort((a, b) => (new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+          setScanLogs(merged.slice(0, 500));
+        }
+      } catch {}
+      try {
+        const vres = await apiService.getVulnerabilitiesWithFallback();
+        setVulns(vres.vulnerabilities);
+      } catch {}
+      // Persist merged state
+      saveState();
+    })();
+  }, [isOpen, scanStatus.is_scanning]);
+
+  // Persist state whenever key pieces change (only while monitor is open)
+  useEffect(() => {
+    if (!isOpen) return;
+    saveState();
+  }, [isOpen, startTime, scanLogs, urlsFound, currentUrl, currentPayload, vulns, scanStatus.scan_id]);
 
   // Reset timer when scan stops or monitor closes
   useEffect(() => {
@@ -205,6 +351,8 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 });
               }
               if (data.current_payload) setCurrentPayload(data.current_payload);
+              // Persist after updates
+              saveState();
               break;
               
             case 'phase_update':
@@ -217,6 +365,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 message: `Entering ${data.phase} phase (${data.progress}% complete)`
               };
               setScanLogs(prev => [phaseLog, ...prev].slice(0, 500));
+              saveState();
               break;
               
             case 'url_crawled':
@@ -235,6 +384,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 set.add(data.url);
                 return Array.from(set);
               });
+              saveState();
               break;
               
             case 'form_found':
@@ -247,6 +397,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 message: `Found form: ${data.form.action} (${data.form.method}) - Total: ${data.total_forms}`
               };
               setScanLogs(prev => [formLog, ...prev].slice(0, 500));
+              saveState();
               break;
               
             case 'payload_testing':
@@ -268,6 +419,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                   return Array.from(set);
                 });
               }
+              saveState();
               break;
               
             case 'vulnerability_found':
@@ -282,7 +434,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
               };
               setScanLogs(prev => [vulnLog, ...prev].slice(0, 500));
               // Refresh local vulnerabilities from live cache
-              apiService.getVulnerabilitiesWithFallback().then(res => setVulns(res.vulnerabilities)).catch(() => {});
+              apiService.getVulnerabilitiesWithFallback().then(res => { setVulns(res.vulnerabilities); saveState(); }).catch(() => {});
               break;
               
             case 'scan_complete':
@@ -296,7 +448,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
               };
               setScanLogs(prev => [completeLog, ...prev].slice(0, 500));
               // Final refresh of vulnerabilities
-              apiService.getVulnerabilitiesWithFallback().then(res => setVulns(res.vulnerabilities)).catch(() => {});
+              apiService.getVulnerabilitiesWithFallback().then(res => { setVulns(res.vulnerabilities); saveState(); }).catch(() => {});
               break;
               
             case 'scan_error':
@@ -309,6 +461,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 message: `❌ Scan error: ${data.error}`
               };
               setScanLogs(prev => [errorLog, ...prev].slice(0, 500));
+              saveState();
               break;
               
             case 'scan_log':
@@ -323,6 +476,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
                 message: data.data.message
               };
               setScanLogs(prev => [legacyLog, ...prev].slice(0, 500));
+              saveState();
               break;
               
             case 'scan_progress':
@@ -387,6 +541,8 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
         phase: 'Stopped',
         message: 'Scan stopped by user'
       }, ...prev]);
+  // Persist stop state too
+  saveState();
     } catch (error) {
       console.error('Failed to stop scan:', error);
     }
@@ -428,7 +584,7 @@ export function ScanMonitor({ isOpen, onClose, scanRequest }: ScanMonitorProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Scan Monitor - {scanRequest.target_url}
+            Scan Monitor{scanRequest?.target_url ? ` - ${scanRequest.target_url}` : ''}
           </DialogTitle>
         </DialogHeader>
 

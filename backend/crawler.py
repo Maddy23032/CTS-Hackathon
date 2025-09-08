@@ -22,14 +22,14 @@ class Crawler:
             return True
         return False
     """
-    Scope-aware web crawler for VulnPy.
+    Scope-aware web crawler for VulnScan.
     Discovers all in-scope links, forms, and input vectors.
     """
     def __init__(self, base_url, cookie=None, delay=0, verbose=False, max_depth=3, max_pages=100, use_browser=False, min_delay=0, max_delay=10):
         self.base_url = base_url
         self.base_netloc = urlparse(base_url).netloc
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'VulnPy/1.0 (Automated Security Scanner)'})
+        self.session.headers.update({'User-Agent': 'VulnScan/1.0 (Automated Security Scanner)'})
         if cookie:
             self.session.headers.update({'Cookie': cookie})
         self.delay = delay

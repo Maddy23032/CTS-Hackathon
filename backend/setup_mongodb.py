@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MongoDB Setup and Application Startup Script for VulnPy GUI
+MongoDB Setup and Application Startup Script for VulnScan GUI
 This script handles MongoDB setup, data migration, and application startup
 """
 
@@ -232,7 +232,7 @@ def start_frontend():
 async def main():
     """Main setup and startup function"""
     logger.info("=" * 60)
-    logger.info("VulnPy GUI - MongoDB Setup and Application Startup")
+    logger.info("VulnScan GUI - MongoDB Setup and Application Startup")
     logger.info("=" * 60)
     
     # Step 1: Check/Start MongoDB
@@ -286,7 +286,7 @@ async def main():
 
 def print_usage():
     """Print usage information"""
-    print("VulnPy GUI MongoDB Setup Script")
+    print("VulnScan GUI MongoDB Setup Script")
     print("Usage: python setup_mongodb.py [options]")
     print("")
     print("Options:")

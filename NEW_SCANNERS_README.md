@@ -1,7 +1,7 @@
-# New Scanners Implementation - VulnPy GUI
+# New Scanners Implementation - VulnScan GUI
 
 ## Overview
-Successfully integrated 3 new vulnerability scanners from the VulnPy CLI into the GUI:
+Successfully integrated 3 new vulnerability scanners from the VulnScan CLI into the GUI:
 
 ### 1. Security Misconfiguration Scanner
 **Features:**

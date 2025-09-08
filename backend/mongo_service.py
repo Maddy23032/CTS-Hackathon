@@ -252,20 +252,12 @@ class MongoService:
             vulnerabilities_found = {}
             severity_distribution = {}
             for stat in vuln_stats:
-                vuln_type = stat["_id"]["type"]
+                vuln_type = (stat["_id"]["type"] or "").lower()
                 severity = stat["_id"]["severity"]
                 count = stat["count"]
                 
                 vulnerabilities_found[vuln_type] = vulnerabilities_found.get(vuln_type, 0) + count
                 severity_distribution[severity] = severity_distribution.get(severity, 0) + count
-            
-            # Get top targets
-            top_targets = await scans_collection.aggregate([
-                {"$match": {"created_at": {"$gte": start_date, "$lte": end_date}}},
-                {"$group": {"_id": "$target_url", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}},
-                {"$limit": 10}
-            ]).to_list(10)
             
             # Create analytics document
             analytics_data = AnalyticsDocument(
@@ -275,7 +267,6 @@ class MongoService:
                 failed_scans=scan_stats[0]["failed_scans"] if scan_stats else 0,
                 vulnerabilities_found=vulnerabilities_found,
                 severity_distribution=severity_distribution,
-                top_targets=[{"url": t["_id"], "count": t["count"]} for t in top_targets],
                 avg_scan_time=scan_stats[0]["avg_scan_time"] if scan_stats else None
             )
             
@@ -326,6 +317,7 @@ class MongoService:
                 total_completed += day_data.get("completed_scans", 0)
                 
                 for vuln_type, count in day_data.get("vulnerabilities_found", {}).items():
+                    vuln_type = (vuln_type or "").lower()
                     if vuln_type not in vulnerability_trends:
                         vulnerability_trends[vuln_type] = []
                     vulnerability_trends[vuln_type].append({

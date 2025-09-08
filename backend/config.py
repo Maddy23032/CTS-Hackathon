@@ -1,9 +1,9 @@
-# MongoDB Configuration for VulnPy
+# MongoDB Configuration for VulnScan
 # This file contains the MongoDB configuration and connection settings
 
 # MongoDB Connection Settings
 MONGODB_URL = "mongodb://localhost:27017"
-DATABASE_NAME = "vulnpy_database"
+DATABASE_NAME = "VulnScan_database"
 
 # Collection Names
 SCANS_COLLECTION = "scans"

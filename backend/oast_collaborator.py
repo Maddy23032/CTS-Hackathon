@@ -6,6 +6,7 @@ Handles callback generation, monitoring, and management for blind vulnerability 
 import uuid
 import time
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -52,12 +53,17 @@ class OASTCollaborator:
             collaborator_url: Base URL for the collaborator server (e.g., Burp Collaborator)
             auth_token: Authentication token if required
         """
-        self.collaborator_url = collaborator_url or "http://localhost:8001"  # Default local collaborator
-        self.auth_token = auth_token
-        self.payloads: Dict[str, OASTPayload] = {}
-        self.callbacks: Dict[str, List[OASTCallback]] = {}
+        # Allow environment variable override
+        env_url = os.getenv("OAST_COLLABORATOR_URL")
+        base_url = collaborator_url or env_url or "http://gkpxyaluuixskilirkuuqkzubj23rq5xm.oast.fun"
+        # Normalize and store
+        self.collaborator_url = base_url.rstrip('/')
+        self.auth_token = auth_token or os.getenv("OAST_COLLABORATOR_TOKEN")
+        # Storage for generated payloads and received callbacks (in-memory only for now)
+        self.payloads = {}
+        self.callbacks = {}
         self.session = None
-        
+            
     async def initialize(self):
         """Initialize the collaborator service"""
         self.session = aiohttp.ClientSession()
@@ -72,8 +78,19 @@ class OASTCollaborator:
         return str(uuid.uuid4()).replace('-', '')[:16]
         
     def generate_subdomain(self) -> str:
-        """Generate a unique subdomain for OAST testing"""
-        return f"{self.generate_callback_id()}.{self.collaborator_url.replace('http://', '').replace('https://', '')}"
+        """Generate a unique (sub)domain for OAST testing.
+
+        If the base collaborator domain already looks like a pre-generated
+        unique hostname (e.g. long random label + .oast.fun) we reuse it as-is
+        so we don't prepend another random prefix which could break DNS.
+        Otherwise we prepend a fresh random ID to spread callbacks per payload.
+        """
+        base = self.collaborator_url.replace('http://', '').replace('https://', '')
+        first_label = base.split('.')[0]
+        # Heuristic: if first label length > 25 assume already unique
+        if len(first_label) > 25:
+            return base
+        return f"{self.generate_callback_id()}.{base}"
         
     def generate_xss_payloads(self, scan_id: str = None) -> List[Dict[str, Any]]:
         """Generate XSS OAST payloads for blind XSS detection"""

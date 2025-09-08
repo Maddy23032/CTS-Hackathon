@@ -14,7 +14,7 @@ class VulnerabilityScanner:
 
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "VulnPy/1.0 (Automated Security Scanner)"
+            "User-Agent": "VulnScan/1.0 (Automated Security Scanner)"
         })
 
         # Shared state across scanners
@@ -99,7 +99,7 @@ class VulnerabilityScanner:
         self.delay = delay
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'VulnPy-Scanner/1.0'
+            'User-Agent': 'VulnScan-Scanner/1.0'
         })
         self.discovered_urls = set()
         self.forms = []

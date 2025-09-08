@@ -1,10 +1,10 @@
-# VulnPy GUI - Complete Setup Instructions
+# VulnScan GUI - Complete Setup Instructions
 
 ## 🏗️ **Architecture Overview**
 
-The VulnPy GUI consists of two main components:
+The VulnScan GUI consists of two main components:
 - **Frontend**: React/TypeScript application built with Vite
-- **Backend**: FastAPI server that wraps the VulnPy scanner
+- **Backend**: FastAPI server that wraps the VulnScan scanner
 
 ## 📋 **Prerequisites**
 

@@ -1,11 +1,14 @@
 """
 vuln_enrichment.py
-Provides enrichment (remediation, CVSS, EPSS, AI summary) for vulnerabilities using Groq AI
+Provides enrichment (remediation, CVSS, EPSS) for vulnerabilities using Groq AI.
 
-- Reads API key from environment variable GROQ_API_KEY (secure). Falls back to provided key if missing.
-- Uses model qwen/qwen3-32b by default (override via GROQ_MODEL).
-- Enforces practical rate-limiting: <= 60 req/min and <= 6000 tokens/min.
-- Keeps responses concise (max_tokens default 600) and caches by vuln type+param to avoid duplicate calls.
+Refactor (Sep 2025):
+ - Switched to remediation-only AI output (no verbose summaries). Sets ai_summary for frontend filtering.
+ - Added cvss_version = '4.0' to each finding for consistency with CLI tool.
+ - Expanded VULN_MAP to include additional OWASP 2021 categories used by CLI.
+ - Prompt now enforces STRICT single-key JSON: {"remediation":"..."} (<=160 chars) with no extra commentary.
+ - Cache stores only remediation; we overwrite existing remediation only if empty or generic.
+ - Maintains existing rate limiting & daily budgeting.
 """
 import os
 import time
@@ -15,13 +18,22 @@ import json
 
 # Static vulnerability database with CVSS and EPSS scores
 VULN_MAP = {
+    # Existing types
     'xss': {'cvss': 6.1, 'epss': 0.85, 'severity': 'medium'},
     'sqli': {'cvss': 9.8, 'epss': 0.92, 'severity': 'critical'},
     'csrf': {'cvss': 6.8, 'epss': 0.77, 'severity': 'medium'},
     'ssrf': {'cvss': 8.6, 'epss': 0.81, 'severity': 'high'},
     'security_misconfiguration': {'cvss': 7.5, 'epss': 0.5, 'severity': 'medium'},
     'vulnerable_components': {'cvss': 7.8, 'epss': 0.65, 'severity': 'high'},
+    # New categories aligned with CLI
+    'broken_access_control': {'cvss': 9.0, 'epss': 0.60, 'severity': 'critical'},
+    'cryptographic_failures': {'cvss': 7.4, 'epss': 0.55, 'severity': 'high'},
+    'authentication_failures': {'cvss': 8.2, 'epss': 0.58, 'severity': 'high'},
+    'integrity_failures': {'cvss': 7.9, 'epss': 0.52, 'severity': 'high'},
+    'logging_monitoring_failures': {'cvss': 5.5, 'epss': 0.30, 'severity': 'medium'},
 }
+
+CVSS_VERSION = "4.0"
 
 # Cache for AI responses to avoid duplicate API calls
 AI_CACHE = {}
@@ -38,7 +50,7 @@ TOKENS_PER_MIN_LIMIT = int(os.getenv("GROQ_TOKENS_PER_MIN", "6000"))
 MAX_TOKENS_PER_CALL = int(os.getenv("GROQ_MAX_TOKENS", "600"))  # concise JSON answer
 PROMPT_OVERHEAD_TOKENS = int(os.getenv("GROQ_PROMPT_OVERHEAD", "400"))  # rough prompt size estimate
 MIN_DELAY_SECONDS = float(os.getenv("GROQ_MIN_DELAY", "1.2"))  # between calls
-MAX_CALLS_PER_RUN_DEFAULT = int(os.getenv("GROQ_MAX_CALLS_PER_RUN", "50"))
+# MAX_CALLS_PER_RUN_DEFAULT removed - no artificial limits, rate limiting handles requests
 
 # Daily budgets (provider): 1k requests/day, 500k tokens/day
 CALLS_PER_DAY_LIMIT = int(os.getenv("GROQ_CALLS_PER_DAY", "1000"))
@@ -109,26 +121,31 @@ def _check_and_consume_daily_budget(tokens_needed: int) -> bool:
     return True
 
 def enrich_finding(finding):
-    """Enrich a finding with static vulnerability data"""
+    """Enrich a finding with static vulnerability data (adds cvss_version)."""
     vuln_type = finding.vulnerability_type
     if vuln_type in VULN_MAP:
         vuln_data = VULN_MAP[vuln_type]
         finding.cvss = vuln_data['cvss']
         finding.epss = vuln_data['epss']
         finding.severity = vuln_data['severity']
-        
-        # Add basic remediation advice
-        if vuln_type == 'xss':
-            finding.remediation = "Implement proper input validation and output encoding. Use Content Security Policy (CSP)."
-        elif vuln_type == 'sqli':
-            finding.remediation = "Use parameterized queries/prepared statements. Implement input validation and least privilege database access."
-        elif vuln_type == 'csrf':
-            finding.remediation = "Implement anti-CSRF tokens, SameSite cookie attributes, and proper referrer validation."
+        finding.cvss_version = CVSS_VERSION
+
+        # Basic remediation advice seeds (only if not already set)
+        if not getattr(finding, 'remediation', None):
+            if vuln_type == 'xss':
+                finding.remediation = "Implement input validation + output encoding; consider CSP."
+            elif vuln_type == 'sqli':
+                finding.remediation = "Use parameterized queries; least-priv DB account; validate inputs."\
+            
+            elif vuln_type == 'csrf':
+                finding.remediation = "Add anti-CSRF tokens; set SameSite=Lax/Strict; verify origin."\
+            
     else:
         finding.cvss = 0
         finding.epss = 0
         finding.severity = 'unknown'
         finding.remediation = 'Review and implement security best practices.'
+        finding.cvss_version = CVSS_VERSION
 
 def get_vulnerability_priority(finding):
     """Get priority score for AI enrichment (higher = more important)"""
@@ -155,18 +172,18 @@ def create_cache_key(finding):
     key_data = f"{finding.vulnerability_type}_{finding.parameter}"
     return hashlib.md5(key_data.encode()).hexdigest()[:12]
 
-def groq_ai_enrich(findings, max_ai_calls=30):
+def groq_ai_enrich(findings, max_ai_calls=0):
     """
     Enrich findings using Groq AI with intelligent rate limiting and prioritization
     
     Args:
         findings: List of vulnerability findings
-        max_ai_calls: Maximum number of AI API calls to make (default: 30)
+        max_ai_calls: Maximum number of AI API calls to make (0 = unlimited, rate limiting handles requests)
     """
     if not findings:
         return findings
     
-    print(f"[+] Processing {len(findings)} findings with AI enrichment (max {max_ai_calls} AI calls)")
+    print(f"[+] Processing {len(findings)} findings with AI remediation enrichment (rate limited by API)")
     
     # Set up Groq client with API key
     client = Groq(api_key=GROQ_API_KEY)
@@ -176,8 +193,11 @@ def groq_ai_enrich(findings, max_ai_calls=30):
     # Sort findings by priority (most important first)
     prioritized_findings = sorted(findings, key=get_vulnerability_priority, reverse=True)
 
-    # Clamp per-run API calls to a safe upper bound
-    max_allowed_calls = min(max_ai_calls or MAX_CALLS_PER_RUN_DEFAULT, MAX_CALLS_PER_RUN_DEFAULT)
+    # Only apply max_ai_calls limit if it's set (> 0)
+    if max_ai_calls > 0:
+        max_allowed_calls = max_ai_calls
+    else:
+        max_allowed_calls = len(findings)  # No artificial limit, rate limiting handles requests
     
     # Process findings with intelligent caching and rate limiting
     for i, finding in enumerate(prioritized_findings):
@@ -186,24 +206,23 @@ def groq_ai_enrich(findings, max_ai_calls=30):
             cache_key = create_cache_key(finding)
             if cache_key in AI_CACHE:
                 cached_result = AI_CACHE[cache_key]
-                finding.ai_summary = cached_result.get('summary', 'AI analysis (cached)')
                 # Only override remediation if it's basic or doesn't exist
-                if not hasattr(finding, 'remediation') or not finding.remediation or 'best practices' in str(finding.remediation):
+                if not hasattr(finding, 'remediation') or not finding.remediation or 'best practices' in str(finding.remediation).lower():
                     finding.remediation = cached_result.get('remediation', getattr(finding, 'remediation', 'No remediation available'))
+                # Set ai_summary to indicate AI enrichment (for frontend filtering)
+                finding.ai_summary = f"AI-enhanced {finding.vulnerability_type} remediation"
                 enriched_count += 1
                 continue
             
             # Stop making API calls if we've reached the limit
             if api_calls_made >= max_allowed_calls:
-                finding.ai_summary = f"AI analysis skipped (rate limit reached, {api_calls_made}/{max_ai_calls} calls used)"
+                # Skip AI generation due to per-run cap
                 continue
             
             # Rate limiting: budget checks (daily + per-minute)
             tokens_needed = MAX_TOKENS_PER_CALL + PROMPT_OVERHEAD_TOKENS
             if not _check_and_consume_daily_budget(tokens_needed):
-                finding.ai_summary = (
-                    f"AI analysis skipped (daily budget reached: calls/tokens limit)"
-                )
+                # Daily budget exhausted; skip
                 continue
             _wait_for_budget(tokens_needed)
             if api_calls_made > 0 and MIN_DELAY_SECONDS > 0:
@@ -211,14 +230,13 @@ def groq_ai_enrich(findings, max_ai_calls=30):
             
             # Create a concise prompt for the finding
             prompt = (
-                f"Analyze this web vulnerability:\n"
-                f"Type: {finding.vulnerability_type}\n"
-                f"URL: {finding.url}\n"
-                f"Parameter: {finding.parameter}\n\n"
-                f"Provide a JSON response with:\n"
-                f"- summary: Brief technical description (1-2 sentences)\n"
-                f"- remediation: Specific fix steps\n\n"
-                f"Format: {{'summary': '...', 'remediation': '...'}}"
+                "You are an application security assistant. Return ONLY strict JSON object: {\"remediation\":\"<fix>\"}."
+                " No markdown, no extra keys, no commentary. Remediation under 160 characters."
+                f"\nType: {finding.vulnerability_type}"
+                f"\nURL: {getattr(finding, 'url', '')}"
+                f"\nParameter: {getattr(finding, 'parameter', '')}"
+                f"\nEvidence: {getattr(finding, 'evidence', '')[:160]}"
+                "\nFocus on concrete mitigation steps (sanitization pattern, config header, parameterized query, permission model, etc)."
             )
             
             completion = client.chat.completions.create(
@@ -242,40 +260,29 @@ def groq_ai_enrich(findings, max_ai_calls=30):
             # Extract response
             if completion.choices and len(completion.choices) > 0:
                 response_text = completion.choices[0].message.content
-                
-                # Parse JSON response
-                import json
                 import re
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                remediation_text = None
                 if json_match:
                     try:
-                        ai_result = json.loads(json_match.group())
-                        finding.ai_summary = ai_result.get('summary', 'AI analysis complete')
-                        
-                        # Cache the result for similar vulnerabilities
-                        AI_CACHE[cache_key] = {
-                            'summary': ai_result.get('summary', 'AI analysis complete'),
-                            'remediation': ai_result.get('remediation', '')
-                        }
-                        
-                        # Only override remediation if it's empty or basic
-                        if not hasattr(finding, 'remediation') or 'best practices' in finding.remediation:
-                            finding.remediation = ai_result.get('remediation', finding.remediation)
-                        enriched_count += 1
-                    except json.JSONDecodeError:
-                        # Fallback: use raw response as summary
-                        finding.ai_summary = f"AI analysis: {response_text[:150]}..."
-                        enriched_count += 1
-                else:
-                    # Fallback: use raw response as summary  
-                    finding.ai_summary = f"AI analysis: {response_text[:150]}..."
+                        ai_obj = json.loads(json_match.group())
+                        remediation_text = ai_obj.get('remediation')
+                    except Exception:
+                        remediation_text = None
+                if remediation_text:
+                    AI_CACHE[cache_key] = {'remediation': remediation_text}
+                    if not getattr(finding, 'remediation', None) or 'best practices' in str(getattr(finding, 'remediation')).lower():
+                        finding.remediation = remediation_text
+                    # Set ai_summary to indicate AI enrichment (for frontend filtering)
+                    finding.ai_summary = f"AI-enhanced {finding.vulnerability_type} remediation"
                     enriched_count += 1
             else:
-                finding.ai_summary = 'No AI response available'
+                # No response choices; keep existing remediation
+                pass
             
             # Progress indicator for large scans
             if len(findings) > 20 and (i + 1) % 10 == 0:
-                print(f"[+] AI enrichment progress: {i + 1}/{len(findings)} processed, {api_calls_made} API calls made")
+                print(f"[+] AI remediation progress: {i + 1}/{len(findings)} processed, {api_calls_made} API calls made")
                 
         except Exception as e:
             error_msg = str(e)
@@ -283,16 +290,15 @@ def groq_ai_enrich(findings, max_ai_calls=30):
             
             # Handle specific error types
             if "rate limit" in error_msg.lower() or "too many requests" in error_msg.lower():
-                print(f"[!] Rate limit hit after {api_calls_made} calls. Continuing with static enrichment...")
-                finding.ai_summary = f'AI rate limit reached (used {api_calls_made} calls)'
+                print(f"[!] Rate limit hit after {api_calls_made} calls. Continuing with static remediation only...")
                 # Stop making more API calls
                 max_allowed_calls = api_calls_made
             elif "has no attribute" in error_msg:
                 # Attribute error - likely missing field on finding object
                 print(f"[!] Attribute error during AI enrichment: {error_msg}")
-                finding.ai_summary = 'AI enrichment failed: missing attributes'
             else:
-                finding.ai_summary = f'AI enrichment error: {error_msg[:50]}...'
+                # Generic error; keep existing remediation
+                pass
     
-    print(f"[+] AI enrichment completed: {enriched_count}/{len(findings)} findings enriched, {api_calls_made} API calls made")
+    print(f"[+] AI remediation enrichment completed: {enriched_count}/{len(findings)} updated, {api_calls_made} API calls made")
     return findings

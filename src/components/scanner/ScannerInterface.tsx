@@ -25,6 +25,50 @@ import {
   Monitor
 } from 'lucide-react';
 
+// RecentTargets component: persists last 5 distinct targets in localStorage
+const RecentTargets: React.FC<{ onSelect: (url: string) => void; current: string }> = ({ onSelect, current }) => {
+  const [list, setList] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem('recent.targets');
+      if (raw) setList(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  // Update list when current changes and is a valid URL
+  React.useEffect(() => {
+    if (!current || current.length < 8) return; // rudimentary length check
+    try {
+      // Basic URL validity
+      const url = new URL(current).toString();
+      setList(prev => {
+        const next = [url, ...prev.filter(p => p !== url)].slice(0, 5);
+        localStorage.setItem('recent.targets', JSON.stringify(next));
+        return next;
+      });
+    } catch {}
+  }, [current]);
+
+  if (!list.length) {
+    return <p className="text-xs text-muted-foreground">No recent targets yet.</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {list.map(url => (
+        <Badge
+          key={url}
+          variant="outline"
+          className="cursor-pointer hover:bg-secondary/50 font-mono text-xs"
+          onClick={() => onSelect(url)}
+        >
+          {url}
+        </Badge>
+      ))}
+    </div>
+  );
+};
+
 export function ScannerInterface() {
   const [targetUrl, setTargetUrl] = useState('');
   const [scanTypes, setScanTypes] = useState({
@@ -33,7 +77,12 @@ export function ScannerInterface() {
     csrf: true,
     security_misconfiguration: false,
     vulnerable_components: false,
-    ssrf: false
+  ssrf: false,
+  broken_access_control: false,
+  cryptographic_failures: false,
+  authentication_failures: false,
+  integrity_failures: false,
+  logging_monitoring_failures: false
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
@@ -41,13 +90,52 @@ export function ScannerInterface() {
   const [verboseEnabled, setVerboseEnabled] = useState(true);
   const [headlessMode, setHeadlessMode] = useState(false);
   const [scanMode, setScanMode] = useState<'fast' | 'full'>('fast');
-  const [maxAiCalls, setMaxAiCalls] = useState(30);
+  const [maxAiCalls, setMaxAiCalls] = useState(0);
   const [requestDelay, setRequestDelay] = useState(100);
   const [showScanMonitor, setShowScanMonitor] = useState(false);
   const [currentScanRequest, setCurrentScanRequest] = useState<ScanRequest | null>(null);
 
   // Use the scan hook
   const { startScan, scanStatus, isConnected } = useScan();
+
+  // Rehydrate monitor visibility and last scan request on mount
+  React.useEffect(() => {
+    try {
+      const savedOpen = localStorage.getItem('scan.monitor.open');
+      const savedReq = localStorage.getItem('scan.monitor.request');
+      if (savedReq) {
+        const parsed: ScanRequest = JSON.parse(savedReq);
+        setCurrentScanRequest(parsed);
+      }
+      // If user previously had monitor open or a scan is currently running, show it
+      if (savedOpen === '1') {
+        setShowScanMonitor(true);
+      }
+    } catch {}
+  }, []);
+
+  // If a scan is running when we return to this page, auto-open the monitor
+  React.useEffect(() => {
+    if (scanStatus.is_scanning) {
+      setShowScanMonitor(true);
+    }
+  }, [scanStatus.is_scanning]);
+
+  // Persist monitor open state
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('scan.monitor.open', showScanMonitor ? '1' : '0');
+    } catch {}
+  }, [showScanMonitor]);
+
+  // Persist current scan request
+  React.useEffect(() => {
+    try {
+      if (currentScanRequest) {
+        localStorage.setItem('scan.monitor.request', JSON.stringify(currentScanRequest));
+      }
+    } catch {}
+  }, [currentScanRequest]);
 
   const handleScanTypeChange = (type: string, checked: boolean) => {
     setScanTypes(prev => ({ ...prev, [type]: checked }));
@@ -71,7 +159,7 @@ export function ScannerInterface() {
       mode: scanMode,
       headless: headlessMode,
       oast: oastEnabled,
-      ai_calls: aiEnabled ? maxAiCalls : 0,
+  ai_calls: maxAiCalls, // Use maxAiCalls state (0 = unlimited)
       verbose: verboseEnabled, // Use the verbose setting from UI
       max_depth: 3,
       delay: requestDelay
@@ -128,21 +216,10 @@ export function ScannerInterface() {
                 </p>
               </div>
 
-              {/* Recent Targets */}
+              {/* Recent Targets (persist last 5 in localStorage) */}
               <div className="space-y-2">
                 <Label className="text-foreground">Recent Targets</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['https://example.com', 'https://test.local', 'https://staging.app'].map((url) => (
-                    <Badge 
-                      key={url} 
-                      variant="outline" 
-                      className="cursor-pointer hover:bg-secondary/50 font-mono text-xs"
-                      onClick={() => setTargetUrl(url)}
-                    >
-                      {url}
-                    </Badge>
-                  ))}
-                </div>
+                <RecentTargets onSelect={(u) => setTargetUrl(u)} current={targetUrl} />
               </div>
             </CardContent>
           </Card>
@@ -169,6 +246,11 @@ export function ScannerInterface() {
                       { id: 'xss', label: 'Cross-Site Scripting (XSS)', color: 'severity-high' },
                       { id: 'sqli', label: 'SQL Injection', color: 'severity-critical' },
                       { id: 'csrf', label: 'CSRF Vulnerabilities', color: 'severity-medium' },
+                      { id: 'broken_access_control', label: 'Broken Access Control', color: 'severity-critical' },
+                      { id: 'authentication_failures', label: 'Auth Failures', color: 'severity-high' },
+                      { id: 'cryptographic_failures', label: 'Cryptographic Failures', color: 'severity-high' },
+                      { id: 'integrity_failures', label: 'Integrity Failures', color: 'severity-high' },
+                      { id: 'logging_monitoring_failures', label: 'Logging & Monitoring', color: 'severity-medium' },
                       { id: 'security_misconfiguration', label: 'Security Misconfiguration', color: 'severity-high' },
                       { id: 'vulnerable_components', label: 'Vulnerable Components', color: 'severity-critical' },
                       { id: 'ssrf', label: 'Server-Side Request Forgery', color: 'severity-high' }
@@ -287,45 +369,7 @@ export function ScannerInterface() {
 
         {/* Side Panel */}
         <div className="space-y-6">
-          {/* AI Configuration */}
-          <Card className="bg-gradient-ai border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <Brain className="h-5 w-5 text-ai-primary" />
-                AI Enhancement
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="ai-enabled"
-                  checked={aiEnabled}
-                  onCheckedChange={(checked) => setAiEnabled(checked === true)}
-                />
-                <Label htmlFor="ai-enabled" className="text-foreground">
-                  Enable AI Analysis
-                </Label>
-              </div>
-              
-              {aiEnabled && (
-                <div className="space-y-3">
-                  <div className="p-3 bg-secondary/20 rounded-lg">
-                    <p className="text-sm text-foreground">Groq qwen/qwen3-32b</p>
-                    <p className="text-xs text-muted-foreground">Enhanced vulnerability analysis</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Max AI Calls</Label>
-                    <Input 
-                      value={maxAiCalls} 
-                      onChange={(e) => setMaxAiCalls(Number(e.target.value))}
-                      type="number" 
-                    />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* AI Enhancement card removed per request */}
 
           {/* OAST Configuration */}
           <Card className="bg-gradient-security border-border">
@@ -465,31 +509,15 @@ export function ScannerInterface() {
             </CardContent>
           </Card>
 
-          {/* Scan Presets */}
-          <Card className="bg-gradient-security border-border">
-            <CardHeader>
-              <CardTitle className="text-sm text-foreground">Scan Presets</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {['Web Application', 'API Endpoint', 'CMS Security', 'Custom Config'].map((preset) => (
-                <Button 
-                  key={preset} 
-                  variant="ghost" 
-                  className="w-full justify-start text-sm"
-                >
-                  {preset}
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
+          {/* Scan Presets removed per request */}
         </div>
       </div>
 
       {/* Scan Monitor Dialog */}
-      {currentScanRequest && (
+    {currentScanRequest && (
         <ScanMonitor
           isOpen={showScanMonitor}
-          onClose={() => setShowScanMonitor(false)}
+      onClose={() => setShowScanMonitor(false)}
           scanRequest={currentScanRequest}
         />
       )}

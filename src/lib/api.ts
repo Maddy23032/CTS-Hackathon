@@ -1,6 +1,9 @@
-// API service for connecting to VulnPy backend
+// API service for connecting to VulnScan backend
 const API_BASE_URL = 'http://localhost:8000';
 const WS_BASE_URL = 'ws://localhost:8000';
+// Groq AI configuration (frontend reference). API key removed — backend proxy handles all enrichment.
+export const GROQ_MODEL = 'qwen/qwen3-32b';
+// NOTE: No API key here. Backend endpoint /api/ai/enrich performs remediation enrichment securely.
 
 export interface ScanRequest {
   target_url: string;
@@ -23,6 +26,7 @@ export interface Vulnerability {
   evidence: string;
   remediation: string;
   cvss: number;
+  cvss_version?: string; // Added to align with backend CVSS v4.0 labeling
   epss: number;
   severity: string;
   ai_summary?: string;
@@ -96,7 +100,6 @@ export interface AnalyticsResponse {
     failed_scans: number;
     vulnerabilities_found: { [key: string]: number };
     severity_distribution: { [key: string]: number };
-    top_targets: Array<{ url: string; count: number }>;
     avg_scan_time?: number;
   }>;
 }
@@ -446,6 +449,28 @@ class ApiService {
       throw new Error(`Failed to update analytics: ${response.statusText}`);
     }
 
+    return response.json();
+  }
+
+  /** Rebuild analytics for past N days (server recomputes historical documents). */
+  async rebuildAnalytics(days: number = 90): Promise<{ status: string; rebuilt_days: number }> {
+    const response = await fetch(`${API_BASE_URL}/api/analytics/rebuild?days=${days}`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to rebuild analytics: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /** Refresh analytics for a specific scan id (updates that scan's day). */
+  async refreshAnalyticsForScan(scanId: string): Promise<{ status: string; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/analytics/refresh_for_scan/${scanId}`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to refresh analytics for scan: ${response.statusText}`);
+    }
     return response.json();
   }
 

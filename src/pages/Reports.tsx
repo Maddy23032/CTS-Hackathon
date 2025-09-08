@@ -85,7 +85,17 @@ const Reports: React.FC = () => {
           id: key,
           timestamp: ts,
           target_url: vuln.url || 'unknown',
-          scan_types: ['XSS', 'SQLi', 'CSRF'], // Default scan types
+          scan_types: [
+            'XSS', 'SQLi', 'CSRF',
+            'Broken Access Control',
+            'Cryptographic Failures',
+            'Authentication Failures',
+            'Integrity Failures',
+            'Logging & Monitoring Failures',
+            'Security Misconfiguration',
+            'Vulnerable Components',
+            'SSRF'
+          ], // Extended scan types
           vulnerabilities: [],
           total_vulnerabilities: 0,
           critical: 0,

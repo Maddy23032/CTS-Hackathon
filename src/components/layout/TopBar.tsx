@@ -23,48 +23,11 @@ export function TopBar() {
       <div className="flex items-center gap-4">
         <SidebarTrigger className="text-foreground" />
         
-        {/* Current Target Display */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Target:</span>
-          <Badge variant="outline" className="font-mono">
-            https://example.com
-          </Badge>
-        </div>
+  {/* Target display removed per request */}
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Scan Controls */}
-        <div className="flex items-center gap-2">
-          {!isScanning ? (
-            <Button 
-              variant="scanner" 
-              size="sm"
-              onClick={() => setIsScanning(true)}
-            >
-              <Play className="h-4 w-4" />
-              Start Scan
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button 
-                variant="warning" 
-                size="sm"
-                onClick={() => setIsScanning(false)}
-              >
-                <Pause className="h-4 w-4" />
-                Pause
-              </Button>
-              <Button 
-                variant="critical" 
-                size="sm"
-                onClick={() => setIsScanning(false)}
-              >
-                <Square className="h-4 w-4" />
-                Stop
-              </Button>
-            </div>
-          )}
-        </div>
+  {/* Scan Controls removed for ScannerInterface-only scan button */}
 
         {/* Status Indicators */}
         <div className="flex items-center gap-3">

