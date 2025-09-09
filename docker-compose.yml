@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  crawler:
+    build: .
+    container_name: crawler_api
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/webscanner
+
+volumes:
+  mongo-data:

@@ -1,0 +1,423 @@
+==================================================
+        Comprehensive Attack Surface Report
+==================================================
+
+[+] SUMMARY
+--------------------------------------------------
+Target URL: http://testphp.vulnweb.com/
+Time Taken: 2.50 seconds
+Total Unique States Found: 21
+Technologies Identified: powered-by:PHP/5.6.40-38+ubuntu20.04.1+deb.sury.org+1, server:nginx/1.19.0
+
+[+] DISCOVERED APPLICATION STATES
+--------------------------------------------------
+
+--- State #01 ---
+URL: http://testphp.vulnweb.com/
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET / HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #02 ---
+URL: http://testphp.vulnweb.com/AJAX/index.php
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /AJAX/index.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #03 ---
+URL: http://testphp.vulnweb.com/Mod_Rewrite_Shop/
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /Mod_Rewrite_Shop/ HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #04 ---
+URL: http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/color-printer/3/
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /Mod_Rewrite_Shop/Details/color-printer/3/ HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #05 ---
+URL: http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/network-attached-storage-dlink/1/
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /Mod_Rewrite_Shop/Details/network-attached-storage-dlink/1/ HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #06 ---
+URL: http://testphp.vulnweb.com/Mod_Rewrite_Shop/Details/web-camera-a4tech/2/
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /Mod_Rewrite_Shop/Details/web-camera-a4tech/2/ HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #07 ---
+URL: http://testphp.vulnweb.com/artists.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /artists.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #08 ---
+URL: http://testphp.vulnweb.com/artists.php?artist=1
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: artist
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /artists.php?artist=1 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #09 ---
+URL: http://testphp.vulnweb.com/artists.php?artist=2
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: artist
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /artists.php?artist=2 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #10 ---
+URL: http://testphp.vulnweb.com/artists.php?artist=3
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: artist
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /artists.php?artist=3 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #11 ---
+URL: http://testphp.vulnweb.com/cart.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /cart.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #12 ---
+URL: http://testphp.vulnweb.com/categories.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /categories.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #13 ---
+URL: http://testphp.vulnweb.com/disclaimer.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /disclaimer.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #14 ---
+URL: http://testphp.vulnweb.com/guestbook.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/guestbook.php
+      Method: POST
+      Fields:
+        - Name: name, Type: hidden
+        - Name: text, Type: text
+        - Name: submit, Type: submit
+    - Form #2:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /guestbook.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #15 ---
+URL: http://testphp.vulnweb.com/hpp/
+
+  [Comprehensive Input Vectors]
+    - No primary input vectors discovered for this state.
+
+  [Original HTTP Request Template]
+    GET /hpp/ HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #16 ---
+URL: http://testphp.vulnweb.com/hpp/?pp=12
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: pp
+    - Form #1:
+      Action: http://testphp.vulnweb.com/hpp/params.php?p=valid&pp=12
+      Method: GET
+      Fields:
+        - Name: aaaa/, Type: submit
+
+  [Original HTTP Request Template]
+    GET /hpp/?pp=12 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #17 ---
+URL: http://testphp.vulnweb.com/listproducts.php?cat=1
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: cat
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /listproducts.php?cat=1 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #18 ---
+URL: http://testphp.vulnweb.com/listproducts.php?cat=2
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: cat
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /listproducts.php?cat=2 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #19 ---
+URL: http://testphp.vulnweb.com/listproducts.php?cat=3
+
+  [Comprehensive Input Vectors]
+    - URL Parameters:
+      - Name: cat
+    - Form #1:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /listproducts.php?cat=3 HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #20 ---
+URL: http://testphp.vulnweb.com/login.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/userinfo.php
+      Method: POST
+      Fields:
+        - Name: uname, Type: text
+        - Name: pass, Type: password
+        - Name: None, Type: submit
+    - Form #2:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /login.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+
+--- State #21 ---
+URL: http://testphp.vulnweb.com/signup.php
+
+  [Comprehensive Input Vectors]
+    - Form #1:
+      Action: http://testphp.vulnweb.com/secured/newuser.php
+      Method: POST
+      Fields:
+        - Name: uuname, Type: text
+        - Name: upass, Type: password
+        - Name: upass2, Type: password
+        - Name: urname, Type: text
+        - Name: ucc, Type: text
+        - Name: uemail, Type: text
+        - Name: uphone, Type: text
+        - Name: uaddress, Type: text
+        - Name: signup, Type: submit
+    - Form #2:
+      Action: http://testphp.vulnweb.com/search.php?test=query
+      Method: POST
+      Fields:
+        - Name: searchFor, Type: text
+        - Name: goButton, Type: submit
+
+  [Original HTTP Request Template]
+    GET /signup.php HTTP/1.1
+    Host: testphp.vulnweb.com
+    User-Agent: SecurityMapper/5.0 (Multi-Threaded)
+    Accept-Encoding: gzip, deflate
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+    Connection: keep-alive
+

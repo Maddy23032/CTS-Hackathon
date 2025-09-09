@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+selenium
+webdriver-manager
+fastapi
+uvicorn
+motor
+playwright
