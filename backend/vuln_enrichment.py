@@ -135,10 +135,23 @@ def enrich_finding(finding):
             if vuln_type == 'xss':
                 finding.remediation = "Implement input validation + output encoding; consider CSP."
             elif vuln_type == 'sqli':
-                finding.remediation = "Use parameterized queries; least-priv DB account; validate inputs."\
-            
+                finding.remediation = "Use parameterized queries; least-priv DB account; validate inputs."
             elif vuln_type == 'csrf':
-                finding.remediation = "Add anti-CSRF tokens; set SameSite=Lax/Strict; verify origin."\
+                finding.remediation = "Add anti-CSRF tokens; set SameSite=Lax/Strict; verify origin."
+            elif vuln_type == 'ssrf':
+                finding.remediation = "Validate URLs; whitelist hosts; use internal DNS; disable redirects."
+            elif vuln_type == 'broken_access_control':
+                finding.remediation = "Implement proper authorization checks; use principle of least privilege."
+            elif vuln_type == 'cryptographic_failures':
+                finding.remediation = "Use strong encryption; proper key management; secure protocols."
+            elif vuln_type == 'authentication_failures':
+                finding.remediation = "Implement MFA; strong password policies; secure session management."
+            elif vuln_type == 'integrity_failures':
+                finding.remediation = "Implement digital signatures; use checksums; validate data integrity."
+            elif vuln_type == 'logging_monitoring_failures':
+                finding.remediation = "Enable security logging; implement monitoring; set up alerts."
+            else:
+                finding.remediation = "Review and implement security best practices."
             
     else:
         finding.cvss = 0
@@ -183,10 +196,27 @@ def groq_ai_enrich(findings, max_ai_calls=0):
     if not findings:
         return findings
     
+    # Check if API key is available
+    if not GROQ_API_KEY:
+        print("[!] GROQ_API_KEY not set. Skipping AI enrichment.")
+        for finding in findings:
+            enrich_finding(finding)  # Apply static enrichment only
+            if not hasattr(finding, 'ai_summary') or not finding.ai_summary:
+                finding.ai_summary = f"AI skipped - {finding.vulnerability_type} (missing API key)"
+        return findings
+    
     print(f"[+] Processing {len(findings)} findings with AI remediation enrichment (rate limited by API)")
     
     # Set up Groq client with API key
-    client = Groq(api_key=GROQ_API_KEY)
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        print(f"[!] Failed to initialize Groq client: {e}")
+        for finding in findings:
+            enrich_finding(finding)  # Apply static enrichment only
+            if not hasattr(finding, 'ai_summary') or not finding.ai_summary:
+                finding.ai_summary = f"AI skipped - {finding.vulnerability_type} (client error)"
+        return findings
     enriched_count = 0
     api_calls_made = 0
     

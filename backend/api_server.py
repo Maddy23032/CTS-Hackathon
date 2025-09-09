@@ -1187,6 +1187,8 @@ async def get_analytics(days: int = 30):
         await mongo_service.update_analytics()
         
         result = await mongo_service.get_analytics(days=days)
+        if not result:
+            return {"daily_data": [], "total_scans": 0, "vulnerability_trends": {}, "scan_success_rate": 0, "date_range": ""}
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
@@ -1378,6 +1380,26 @@ async def get_vulnerabilities():
         "by_type": by_type,
     }
 
+@app.get("/api/ai/status")
+async def get_ai_status():
+    """Get AI enrichment status and configuration"""
+    try:
+        api_key = os.getenv("GROQ_API_KEY")
+        return {
+            "api_key_set": bool(api_key),
+            "api_key_length": len(api_key) if api_key else 0,
+            "groq_model": os.getenv("GROQ_MODEL", "qwen/qwen3-32b"),
+            "groq_available": True,
+            "status": "ready" if api_key else "missing_api_key"
+        }
+    except Exception as e:
+        return {
+            "api_key_set": False,
+            "error": str(e),
+            "groq_available": False,
+            "status": "error"
+        }
+
 @app.post("/api/ai/enrich")
 async def enrich_vulnerabilities():
     if scan_state.vulnerabilities is None:
@@ -1411,12 +1433,13 @@ async def enrich_vulnerabilities():
         # Convert dict back to finding objects for AI enrichment
         class MockFinding:
             def __init__(self, vuln_dict):
-                self.vulnerability_type = vuln_dict.get("type")
-                self.url = vuln_dict.get("url")
-                self.parameter = vuln_dict.get("parameter")
-                self.payload = vuln_dict.get("payload")
-                self.evidence = vuln_dict.get("evidence")
-                self.confidence = vuln_dict.get("confidence")
+                self.vulnerability_type = vuln_dict.get("type", "unknown")
+                self.url = vuln_dict.get("url", "")
+                self.parameter = vuln_dict.get("parameter", "")
+                self.payload = vuln_dict.get("payload", "")
+                self.evidence = vuln_dict.get("evidence", "")
+                self.confidence = vuln_dict.get("confidence", "Medium")
+                self.remediation = vuln_dict.get("remediation", "")
 
         mock_findings = [MockFinding(v) for v in scan_state.vulnerabilities]
         enriched_findings = groq_ai_enrich(mock_findings)
@@ -1424,10 +1447,14 @@ async def enrich_vulnerabilities():
         # Update stored vulnerabilities with (possibly improved) remediation text
         updated = 0
         for i, finding in enumerate(enriched_findings):
+            if i >= len(scan_state.vulnerabilities):
+                break  # Safety check
+            
             changed = False
             if hasattr(finding, 'remediation') and finding.remediation:
                 scan_state.vulnerabilities[i]["remediation"] = finding.remediation
                 changed = True
+            
             # Always set ai_summary if enrichment ran, even if remediation unchanged
             vuln_type = scan_state.vulnerabilities[i].get("type", "vulnerability")
             if hasattr(finding, 'ai_summary') and getattr(finding, 'ai_summary'):

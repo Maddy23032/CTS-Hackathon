@@ -189,6 +189,9 @@ class MongoService:
         per_page: int = 50
     ) -> Dict[str, Any]:
         """Get vulnerabilities with filtering"""
+        if not self._check_connection():
+            return {"vulnerabilities": [], "total": 0, "by_type": {}, "by_severity": {}}
+        
         try:
             vulns_collection = mongodb.db.vulnerabilities
             
@@ -259,6 +262,9 @@ class MongoService:
     
     async def update_analytics(self, date: str = None):
         """Update analytics for a given date (default: today)"""
+        if not self._check_connection():
+            return None
+        
         if not date:
             date = datetime.utcnow().strftime("%Y-%m-%d")
         
@@ -325,9 +331,13 @@ class MongoService:
             
         except Exception as e:
             logger.error(f"Failed to update analytics: {e}")
+            return None
     
     async def get_analytics(self, days: int = 30) -> Dict[str, Any]:
         """Get analytics for the last N days"""
+        if not self._check_connection():
+            return {"daily_data": [], "total_scans": 0, "vulnerability_trends": {}, "scan_success_rate": 0, "date_range": ""}
+        
         try:
             analytics_collection = mongodb.db.analytics
             
