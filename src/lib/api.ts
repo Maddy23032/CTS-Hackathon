@@ -2,7 +2,7 @@
 const isDevelopment = import.meta.env.DEV;
 const API_BASE_URL = isDevelopment 
   ? 'http://localhost:8000' 
-  : (import.meta.env.VITE_API_URL || 'https://cts-hackathon-oan6.onrender.com/api');
+  : (import.meta.env.VITE_API_URL || 'https://cts-hackathon-oan6.onrender.com');
 const WS_BASE_URL = isDevelopment 
   ? 'ws://localhost:8000' 
   : (import.meta.env.VITE_WS_URL || 'wss://cts-hackathon-oan6.onrender.com');
