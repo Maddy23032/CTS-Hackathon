@@ -159,7 +159,7 @@ export function ScannerInterface() {
       mode: scanMode,
       headless: headlessMode,
       oast: oastEnabled,
-  ai_calls: maxAiCalls, // Use maxAiCalls state (0 = unlimited)
+      ai_calls: maxAiCalls, // Use maxAiCalls state (0 = unlimited)
       verbose: verboseEnabled, // Use the verbose setting from UI
       max_depth: 3,
       delay: requestDelay

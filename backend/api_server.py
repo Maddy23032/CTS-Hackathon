@@ -166,7 +166,7 @@ async def shutdown_event():
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:5173", "http://127.0.0.1:8080"],  # Vite default ports
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:5173", "http://127.0.0.1:8080","https://vulnscan-nine.vercel.app"],  # Vite default ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -670,7 +670,6 @@ def generate_pdf_report(scan, vulnerabilities, logs, include_ai_analysis=True):
 # Pydantic models for API requests
 class ScanRequest(BaseModel):
     target_url: str
-    scan_types: List[str] = ["xss", "sqli", "csrf"]
     # Extend default scan types to include new categories
     scan_types: List[str] = [
         "xss", "sqli", "csrf",
