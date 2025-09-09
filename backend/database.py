@@ -14,29 +14,42 @@ class MongoDB:
     def __init__(self, connection_string: str = None):
         self.client = None
         self.db = None
-        # Use environment variable first, then fallback to parameter, then localhost
-        self.connection_string = (
-            connection_string or 
-            os.getenv("MONGODB_URI") or 
-            "mongodb://localhost:27017"
+        # Resolve connection string with safer production behavior (no silent localhost fallback)
+        env = os.getenv("ENVIRONMENT", "").lower()
+        candidate = (
+            connection_string
+            or os.getenv("MONGODB_URI")
+            or os.getenv("MONGODB_URL")
         )
+        # Only allow localhost fallback during explicit non-production (dev) mode
+        if not candidate and env not in ("production", "prod"):
+            candidate = "mongodb://localhost:27017"
+        self.connection_string = candidate
+        if not self.connection_string:
+            logger.warning("MongoDB URI not provided – database features will be disabled (set MONGODB_URI).")
         
     async def connect(self):
         """Connect to MongoDB"""
+        if not self.connection_string:
+            return  # Skip silently; app will operate in in-memory mode
         try:
+            masked = self.connection_string
+            if "@" in masked:
+                # Mask credentials
+                parts = masked.split("@", 1)
+                cred, rest = parts[0], parts[1]
+                if "://" in cred:
+                    scheme, creds = cred.split("://", 1)
+                    cred = f"{scheme}://***:***"
+                masked = cred + "@" + rest
+            logger.info(f"Connecting to MongoDB at {masked}")
             self.client = AsyncIOMotorClient(self.connection_string)
             self.db = self.client["VulnScan_db"]
-            
-            # Test connection
             await self.client.admin.command('ping')
             logger.info("Connected to MongoDB successfully")
-            
-            # Create indexes for better performance
             await self.create_indexes()
-            
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
-            # Don't raise the exception, just log it
             self.client = None
             self.db = None
             

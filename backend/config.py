@@ -2,8 +2,14 @@
 # This file contains the MongoDB configuration and connection settings
 
 # MongoDB Connection Settings
-MONGODB_URL = "mongodb://localhost:27017"
-DATABASE_NAME = "VulnScan_database"
+# In production you MUST supply MONGODB_URI / MONGODB_URL via environment.
+# We only fall back to localhost in explicit development (ENVIRONMENT != production).
+import os
+ENV = os.getenv("ENVIRONMENT", "development").lower()
+MONGODB_URL = os.getenv("MONGODB_URI") or os.getenv("MONGODB_URL")
+if not MONGODB_URL and ENV not in ("production", "prod"):
+    MONGODB_URL = "mongodb://localhost:27017"
+DATABASE_NAME = os.getenv("MONGODB_DB", "VulnScan_db")
 
 # Collection Names
 SCANS_COLLECTION = "scans"
@@ -88,21 +94,19 @@ LOGGING_CONFIG = {
 }
 
 # Development vs Production Settings
-import os
-
-if os.getenv("ENVIRONMENT") == "production":
-    # Production settings
-    MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+if ENV in ("production", "prod"):
     SECURITY_SETTINGS["ssl"] = True
     SECURITY_SETTINGS["ssl_cert_reqs"] = "CERT_REQUIRED"
     MONGODB_SETTINGS["w"] = "majority"
     MONGODB_SETTINGS["j"] = True
 else:
-    # Development settings
-    MONGODB_URL = "mongodb://localhost:27017"
     SECURITY_SETTINGS["ssl"] = False
     MONGODB_SETTINGS["w"] = 1
     MONGODB_SETTINGS["j"] = False
+
+if not MONGODB_URL:
+    # Warn loudly so deployment logs show misconfiguration
+    print("[WARN] No MongoDB URL provided. Set MONGODB_URI or MONGODB_URL. Running in degraded in-memory mode.")
 
 # Database Migration Settings
 MIGRATION_SETTINGS = {
