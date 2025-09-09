@@ -22,9 +22,11 @@ export const Analytics: React.FC = () => {
     setLoading(true);
     try {
       const data = await apiService.getAnalytics(timeRange);
+      console.log('Analytics data received:', data); // Debug log
       setAnalytics(data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -46,7 +48,6 @@ export const Analytics: React.FC = () => {
     }, 0);
   };
 
-  // Build pie data for Vulnerabilities by Type (filter out legacy LFI/RFI, normalize labels)
   const vulnByType = useMemo(() => {
     if (!analytics?.daily_data) return [] as Array<{ key: string; name: string; value: number }>;
     const totals: Record<string, number> = {};
@@ -58,11 +59,11 @@ export const Analytics: React.FC = () => {
       ssrf: 'SSRF',
       security_misconfiguration: 'Security Misconfiguration',
       vulnerable_components: 'Vulnerable Components',
-  broken_access_control: 'Broken Access Control',
-  cryptographic_failures: 'Cryptographic Failures',
-  authentication_failures: 'Authentication Failures',
-  integrity_failures: 'Integrity Failures',
-  logging_monitoring_failures: 'Logging & Monitoring Failures',
+      broken_access_control: 'Broken Access Control',
+      cryptographic_failures: 'Cryptographic Failures',
+      authentication_failures: 'Authentication Failures',
+      integrity_failures: 'Integrity Failures',
+      logging_monitoring_failures: 'Logging & Monitoring Failures',
     };
     analytics.daily_data.forEach(day => {
       Object.entries(day.vulnerabilities_found || {}).forEach(([type, count]) => {
@@ -72,6 +73,7 @@ export const Analytics: React.FC = () => {
       });
     });
     return Object.entries(totals)
+      .filter(([_, value]) => value > 0) // Only include types with actual vulnerabilities
       .map(([key, value]) => ({ key, name: LABELS[key] || key, value: Number(value) }))
       .sort((a, b) => b.value - a.value);
   }, [analytics]);
@@ -110,6 +112,39 @@ export const Analytics: React.FC = () => {
       <div className="p-6 max-w-7xl mx-auto">
         <div className="text-center py-8 text-gray-500">
           📊 No analytics data available
+          <div className="mt-4">
+            <button
+              onClick={fetchAnalytics}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle empty daily_data
+  if (!analytics.daily_data || analytics.daily_data.length === 0) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="text-center py-8 text-gray-500">
+          📊 No scan data available for the selected time range
+          <div className="mt-4 space-x-2">
+            <button
+              onClick={() => setTimeRange(90)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Try 90 days
+            </button>
+            <button
+              onClick={fetchAnalytics}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -304,31 +339,35 @@ export const Analytics: React.FC = () => {
         <div className="bg-card text-card-foreground rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">⚡ Severity Distribution</h3>
           <div className="space-y-3">
-            {Object.entries(severityDist).map(([severity, count]) => {
-              const percentage = totalVulns > 0 ? (count / totalVulns * 100).toFixed(1) : '0';
-              const severityColor = {
-                'critical': 'bg-red-500',
-                'high': 'bg-orange-500',
-                'medium': 'bg-yellow-500',
-                'low': 'bg-blue-500',
-                'info': 'bg-gray-500'
-              }[severity.toLowerCase()] || 'bg-gray-500';
+            {Object.keys(severityDist).length === 0 ? (
+              <div className="text-muted-foreground text-sm">No data</div>
+            ) : (
+              Object.entries(severityDist).map(([severity, count]) => {
+                const percentage = totalVulns > 0 ? (count / totalVulns * 100).toFixed(1) : '0';
+                const severityColor = {
+                  'critical': 'bg-red-500',
+                  'high': 'bg-orange-500',
+                  'medium': 'bg-yellow-500',
+                  'low': 'bg-blue-500',
+                  'info': 'bg-gray-500'
+                }[severity.toLowerCase()] || 'bg-gray-500';
               
-              return (
-                <div key={severity} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground capitalize">{severity}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 bg-muted rounded-full h-2">
-                      <div
-                        className={`${severityColor} h-2 rounded-full`}
-                        style={{ width: `${percentage}%` }}
-                      ></div>
+                return (
+                  <div key={severity} className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground capitalize">{severity}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-muted rounded-full h-2">
+                        <div
+                          className={`${severityColor} h-2 rounded-full`}
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-muted-foreground w-12 text-right">{count}</span>
                     </div>
-                    <span className="text-sm text-muted-foreground w-12 text-right">{count}</span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 

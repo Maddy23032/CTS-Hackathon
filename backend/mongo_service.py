@@ -34,6 +34,37 @@ class MongoService:
             return False
         return True
     
+    def _convert_to_vulnerability_doc(self, vuln_data: dict) -> VulnerabilityDocument:
+        """Safely convert MongoDB document to VulnerabilityDocument"""
+        try:
+            # Ensure required fields have defaults
+            converted_data = {
+                "scan_id": vuln_data.get("scan_id", ""),
+                "type": vuln_data.get("type", "unknown"),
+                "url": vuln_data.get("url", ""),
+                "parameter": vuln_data.get("parameter"),
+                "payload": vuln_data.get("payload"),
+                "evidence": vuln_data.get("evidence", ""),
+                "severity": vuln_data.get("severity", "medium"),
+                "cvss_score": vuln_data.get("cvss_score"),
+                "epss_score": vuln_data.get("epss_score"),
+                "confidence": vuln_data.get("confidence"),
+                "remediation": vuln_data.get("remediation"),
+                "ai_summary": vuln_data.get("ai_summary"),
+                "created_at": vuln_data.get("created_at", datetime.utcnow()),
+                "updated_at": vuln_data.get("updated_at", datetime.utcnow())
+            }
+            return VulnerabilityDocument(**converted_data)
+        except Exception as e:
+            logger.error(f"Failed to convert vulnerability document: {e}")
+            # Return a minimal valid document
+            return VulnerabilityDocument(
+                scan_id=vuln_data.get("scan_id", ""),
+                type="unknown",
+                url=vuln_data.get("url", ""),
+                evidence="Conversion error"
+            )
+    
     # ==================== SCAN OPERATIONS ====================
     
     async def create_scan(self, scan_data: ScanDocument) -> str:
@@ -188,7 +219,7 @@ class MongoService:
                 by_severity[vuln_severity] = by_severity.get(vuln_severity, 0) + 1
             
             return {
-                "vulnerabilities": [VulnerabilityDocument(**vuln) for vuln in vulns],
+                "vulnerabilities": [self._convert_to_vulnerability_doc(vuln) for vuln in vulns],
                 "total": total,
                 "by_type": by_type,
                 "by_severity": by_severity,

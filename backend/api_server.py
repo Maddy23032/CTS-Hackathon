@@ -1328,9 +1328,10 @@ async def get_vulnerabilities():
     # Try to get all vulnerabilities from MongoDB first (for historical data)
     try:
         # Get all vulnerabilities from MongoDB (not just latest scan)
-        mongo_vulns = await mongo_service.get_vulnerabilities()  # Get all vulnerabilities
+        mongo_response = await mongo_service.get_vulnerabilities()  # Get all vulnerabilities
         
-        if mongo_vulns and len(mongo_vulns) > 0:
+        if mongo_response and mongo_response.get("vulnerabilities"):
+            mongo_vulns = mongo_response["vulnerabilities"]
             # Build dynamic counts by vulnerability type
             by_type: Dict[str, int] = {}
             for v in mongo_vulns:
@@ -1379,6 +1380,8 @@ async def get_vulnerabilities():
 
 @app.post("/api/ai/enrich")
 async def enrich_vulnerabilities():
+    if scan_state.vulnerabilities is None:
+        scan_state.vulnerabilities = []
     if not scan_state.vulnerabilities:
         return {"status": "error", "message": "No vulnerabilities to enrich"}
     
