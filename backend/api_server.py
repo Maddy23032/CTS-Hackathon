@@ -38,16 +38,33 @@ from models import ScanDocument, VulnerabilityDocument, ScanLogEntry, ScanStatus
 app = FastAPI(title="VulnScan GUI API", version="1.0.0")
 
 # Get the frontend URL from environment variable
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://vulnscan-nine.vercel.app")
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        FRONTEND_URL, 
+        "https://vulnscan-nine.vercel.app",
+        "http://localhost:5173", 
+        "http://localhost:3000",
+        "http://localhost:8000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add health check endpoint
+@app.get("/api/health")
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "message": "VulnScan API is running",
+        "version": "1.0.0",
+        "environment": "production" if os.getenv("MONGODB_URI") else "development"
+    }
 
 # Endpoint to fetch last scan details for persistence
 @app.get("/api/scan/last")
