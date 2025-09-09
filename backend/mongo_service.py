@@ -33,6 +33,20 @@ class MongoService:
             logger.warning("MongoDB not available - operation skipped")
             return False
         return True
+
+    async def ensure_minimum_analytics(self, days: int = 30):
+        """If analytics collection is empty but we have scans, trigger a backfill.
+        This is a lightweight guard to auto-populate after first deployment."""
+        if not self._check_connection():
+            return
+        try:
+            analytics_collection = mongodb.db.analytics
+            count = await analytics_collection.count_documents({})
+            if count == 0:
+                logger.info("Analytics collection empty – performing initial backfill")
+                await self.force_rebuild(days=days)
+        except Exception as e:
+            logger.warning(f"Failed ensure_minimum_analytics: {e}")
     
     def _convert_to_vulnerability_doc(self, vuln_data: dict) -> VulnerabilityDocument:
         """Safely convert MongoDB document to VulnerabilityDocument"""
@@ -332,6 +346,23 @@ class MongoService:
         except Exception as e:
             logger.error(f"Failed to update analytics: {e}")
             return None
+
+    async def force_rebuild(self, days: int = 90):
+        """Force rebuild analytics for the past N days regardless of existing docs."""
+        if not self._check_connection():
+            logger.warning("Cannot force rebuild – MongoDB not connected")
+            return {"rebuilt": 0, "days": []}
+        from datetime import datetime as dt, timedelta as td
+        rebuilt_days = []
+        for i in range(days):
+            date = (dt.utcnow() - td(days=i)).strftime("%Y-%m-%d")
+            try:
+                await self.update_analytics(date)
+                rebuilt_days.append(date)
+            except Exception as e:
+                logger.error(f"Rebuild failed for {date}: {e}")
+        logger.info(f"Force rebuild complete for {len(rebuilt_days)} day(s)")
+        return {"rebuilt": len(rebuilt_days), "days": rebuilt_days}
     
     async def get_analytics(self, days: int = 30) -> Dict[str, Any]:
         """Get analytics for the last N days"""
@@ -353,6 +384,20 @@ class MongoService:
             ).sort("date", 1)
             
             analytics_data = await cursor.to_list(length=days)
+            # If nothing returned but we do have scans, auto-backfill once
+            if not analytics_data:
+                try:
+                    scans_count = await mongodb.db.scans.count_documents({})
+                    if scans_count > 0:
+                        logger.info("No analytics docs found; triggering on-demand rebuild")
+                        await self.force_rebuild(days=min(days, 90))
+                        cursor = analytics_collection.find(
+                            {"date": {"$gte": start_date_str, "$lte": end_date_str}},
+                            {"_id": 0}
+                        ).sort("date", 1)
+                        analytics_data = await cursor.to_list(length=days)
+                except Exception as e:
+                    logger.warning(f"Auto-backfill analytics failed: {e}")
             # Normalize any datetime fields for JSON (e.g., updated_at)
             for item in analytics_data:
                 try:

@@ -1185,7 +1185,9 @@ async def get_analytics(days: int = 30):
     try:
         # Update analytics for today before returning
         await mongo_service.update_analytics()
-        
+        # Ensure minimum backfill if empty
+        await mongo_service.ensure_minimum_analytics(days=days)
+
         result = await mongo_service.get_analytics(days=days)
         if not result:
             return {"daily_data": [], "total_scans": 0, "vulnerability_trends": {}, "scan_success_rate": 0, "date_range": ""}
@@ -1215,6 +1217,15 @@ async def rebuild_analytics(days: int = 90):
         return {"status": "success", "rebuilt_days": len(rebuilt), "days": rebuilt[:10] + (["..."] if len(rebuilt) > 10 else [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to rebuild analytics: {str(e)}")
+
+@app.post("/api/analytics/force_rebuild")
+async def force_rebuild_analytics(days: int = 90):
+    """Force rebuild analytics using the new mongo_service.force_rebuild helper."""
+    try:
+        result = await mongo_service.force_rebuild(days=days)
+        return {"status": "success", **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to force rebuild analytics: {str(e)}")
 
 @app.post("/api/analytics/refresh_for_scan/{scan_id}")
 async def refresh_analytics_for_scan(scan_id: str):

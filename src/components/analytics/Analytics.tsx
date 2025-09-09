@@ -107,48 +107,17 @@ export const Analytics: React.FC = () => {
     );
   }
 
-  if (!analytics) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="text-center py-8 text-gray-500">
-          📊 No analytics data available
-          <div className="mt-4">
-            <button
-              onClick={fetchAnalytics}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Provide a safe fallback so we always show the dashboard (with zeros) instead of the old empty-state screen
+  const safeAnalytics: AnalyticsResponse = analytics ?? {
+    date_range: '',
+    total_scans: 0,
+    vulnerability_trends: {},
+    scan_success_rate: 0,
+    daily_data: []
+  };
 
-  // Handle empty daily_data
-  if (!analytics.daily_data || analytics.daily_data.length === 0) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="text-center py-8 text-gray-500">
-          📊 No scan data available for the selected time range
-          <div className="mt-4 space-x-2">
-            <button
-              onClick={() => setTimeRange(90)}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Try 90 days
-            </button>
-            <button
-              onClick={fetchAnalytics}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // If no data yet, still allow user to change range / update analytics without hiding the layout.
+  const hasData = (safeAnalytics.daily_data && safeAnalytics.daily_data.length > 0);
 
   const latestDay = getLatestDayData();
   const totalVulns = getTotalVulnerabilities();
@@ -197,8 +166,8 @@ export const Analytics: React.FC = () => {
           <div className="flex items-center">
             <div className="text-2xl mr-3">🔍</div>
             <div>
-      <p className="text-muted-foreground text-sm">Total Scans</p>
-      <p className="text-2xl font-bold text-foreground">{analytics.total_scans}</p>
+  <p className="text-muted-foreground text-sm">Total Scans</p>
+  <p className="text-2xl font-bold text-foreground">{safeAnalytics.total_scans}</p>
             </div>
           </div>
         </div>
@@ -218,7 +187,7 @@ export const Analytics: React.FC = () => {
             <div className="text-2xl mr-3">✅</div>
             <div>
       <p className="text-muted-foreground text-sm">Success Rate</p>
-              <p className="text-2xl font-bold text-green-600">{analytics.scan_success_rate}%</p>
+              <p className="text-2xl font-bold text-green-600">{safeAnalytics.scan_success_rate}%</p>
             </div>
           </div>
         </div>
@@ -239,10 +208,12 @@ export const Analytics: React.FC = () => {
     <div className="bg-card text-card-foreground rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
     <h3 className="text-lg font-semibold text-foreground">🧩 Vulnerabilities by Type</h3>
-    <span className="text-sm text-muted-foreground">Total: {totalVulns}</span>
+            <span className="text-sm text-muted-foreground">Total: {totalVulns}</span>
           </div>
-          {vulnByType.length === 0 ? (
-    <div className="text-muted-foreground text-sm">No data</div>
+          {!hasData ? (
+            <div className="text-muted-foreground text-sm">No vulnerability data yet</div>
+          ) : vulnByType.length === 0 ? (
+            <div className="text-muted-foreground text-sm">No classified vulnerability types</div>
           ) : (
             <div className="w-full h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -339,8 +310,10 @@ export const Analytics: React.FC = () => {
         <div className="bg-card text-card-foreground rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">⚡ Severity Distribution</h3>
           <div className="space-y-3">
-            {Object.keys(severityDist).length === 0 ? (
-              <div className="text-muted-foreground text-sm">No data</div>
+            {!hasData ? (
+              <div className="text-muted-foreground text-sm">No severity data yet</div>
+            ) : Object.keys(severityDist).length === 0 ? (
+              <div className="text-muted-foreground text-sm">No severity distribution</div>
             ) : (
               Object.entries(severityDist).map(([severity, count]) => {
                 const percentage = totalVulns > 0 ? (count / totalVulns * 100).toFixed(1) : '0';
@@ -375,7 +348,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-card text-card-foreground rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">📈 Recent Activity</h3>
           <div className="space-y-3">
-            {analytics.daily_data.slice(-7).reverse().map((day) => {
+            {safeAnalytics.daily_data.slice(-7).reverse().map((day) => {
               const totalVulnsDay = Object.values(day.vulnerabilities_found || {}).reduce((sum, count) => sum + count, 0);
               const successRate = day.total_scans > 0 ? ((day.completed_scans / day.total_scans) * 100).toFixed(0) : '0';
               
@@ -402,7 +375,7 @@ export const Analytics: React.FC = () => {
 
       {/* Date Range Info */}
   <div className="mt-8 text-center text-sm text-muted-foreground">
-        Data for {analytics.date_range}
+  {hasData ? `Data for ${safeAnalytics.date_range}` : 'No historical analytics yet'}
       </div>
     </div>
   );
