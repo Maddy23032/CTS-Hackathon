@@ -5,19 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Brain, 
-  Zap, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
+import {
+  Brain,
+  Zap,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
   TrendingUp,
   Shield,
   Target,
   Activity,
   Lightbulb
 } from 'lucide-react';
-import { apiService } from '@/lib/api';
+import { apiService } from '../lib/api'; // CORRECTED: Changed from aliased to relative path
 
 interface AIEnrichedVulnerability {
   id: string;
@@ -59,53 +59,47 @@ export function AIAnalysis() {
     fetchAIAnalysis();
   }, []);
 
+  // Helper function to process vulnerabilities and update state to avoid code duplication
+  const processVulnerabilities = (vulns: any[]) => {
+    // Map to expected shape for frontend
+    const mappedVulns = vulns.map((v: any, idx: number) => ({
+      id: v.id || String(idx),
+      type: String(v.type || ''),
+      url: String(v.url || ''),
+      parameter: v.parameter ? String(v.parameter) : '',
+      payload: v.payload ? String(v.payload) : '',
+      evidence: v.evidence ? String(v.evidence) : '',
+      remediation: v.remediation ? String(v.remediation) : '',
+      cvss: typeof v.cvss === 'number' ? v.cvss : 0,
+      cvss_version: v.cvss_version ? String(v.cvss_version) : undefined,
+      severity: String(v.severity || ''),
+      ai_summary: v.ai_summary ? String(v.ai_summary) : '',
+      confidence: v.confidence ? String(v.confidence) : '',
+      timestamp: v.timestamp ? String(v.timestamp) : '',
+    }));
+    setVulnerabilities(mappedVulns);
+
+    // Calculate AI analysis statistics
+    const aiEnriched = mappedVulns.filter(v => v.ai_summary || (v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation))).length;
+    const highConfidence = mappedVulns.filter(v => v.confidence === 'High').length;
+    const recommendationsGenerated = mappedVulns.filter(v => v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation)).length;
+    const coverage = mappedVulns.length > 0 ? Math.round((aiEnriched / mappedVulns.length) * 100) : 0;
+
+    setStats({
+      total_vulnerabilities: mappedVulns.length,
+      ai_enriched: aiEnriched,
+      high_confidence: highConfidence,
+      recommendations_generated: recommendationsGenerated,
+      analysis_coverage: coverage
+    });
+  };
+
   const fetchAIAnalysis = async () => {
     try {
       setLoading(true);
-      let response = await apiService.getVulnerabilitiesWithFallback();
-      let vulns = response.vulnerabilities || [];
-      // If no ai_summary present try hitting real-time AI state endpoint
-    if (vulns.length && vulns.every((v: any) => !v.ai_summary)) {
-        try {
-      const base = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
-      const fresh = await fetch(`${base}/api/ai/current`).then(r=>r.json());
-          if (fresh && Array.isArray(fresh.vulnerabilities) && fresh.vulnerabilities.length >= vulns.length) {
-            vulns = fresh.vulnerabilities as any;
-          }
-        } catch {}
-      }
-      
-      // Map to expected shape for frontend
-      const mappedVulns = vulns.map((v: any, idx: number) => ({
-        id: v.id || String(idx),
-        type: String(v.type || ''),
-        url: String(v.url || ''),
-        parameter: v.parameter ? String(v.parameter) : '',
-        payload: v.payload ? String(v.payload) : '',
-        evidence: v.evidence ? String(v.evidence) : '',
-        remediation: v.remediation ? String(v.remediation) : '',
-        cvss: typeof v.cvss === 'number' ? v.cvss : 0,
-        cvss_version: v.cvss_version ? String(v.cvss_version) : undefined,
-        severity: String(v.severity || ''),
-        ai_summary: v.ai_summary ? String(v.ai_summary) : '',
-        confidence: v.confidence ? String(v.confidence) : '',
-        timestamp: v.timestamp ? String(v.timestamp) : '',
-      }));
-      setVulnerabilities(mappedVulns);
-      
-      // Calculate AI analysis statistics
-  const aiEnriched = vulns.filter(v => v.ai_summary || (v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation))).length;
-      const highConfidence = vulns.filter(v => v.confidence === 'High').length;
-  const recommendationsGenerated = vulns.filter(v => v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation)).length;
-      const coverage = vulns.length > 0 ? Math.round((aiEnriched / vulns.length) * 100) : 0;
-      
-      setStats({
-        total_vulnerabilities: vulns.length,
-        ai_enriched: aiEnriched,
-        high_confidence: highConfidence,
-        recommendations_generated: recommendationsGenerated,
-        analysis_coverage: coverage
-      });
+      const response = await apiService.getVulnerabilitiesWithFallback();
+      const vulns = response.vulnerabilities || [];
+      processVulnerabilities(vulns);
     } catch (error) {
       console.error('Failed to fetch AI analysis:', error);
     } finally {
@@ -113,52 +107,21 @@ export function AIAnalysis() {
     }
   };
 
+  // CORRECTED: This function now correctly awaits the enrichment and then re-fetches the data.
   const triggerAIEnrichment = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
+      // 1. Call the enrichment API and wait for it to complete
       await apiService.triggerAIEnrichment();
-      // Force fetch from /api/ai/current after enrichment
-      setTimeout(async () => {
-        try {
-          const base = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
-          const fresh = await fetch(`${base}/api/ai/current`).then(r=>r.json());
-          if (fresh && Array.isArray(fresh.vulnerabilities)) {
-            const mappedVulns = fresh.vulnerabilities.map((v: any, idx: number) => ({
-              id: v.id || String(idx),
-              type: String(v.type || ''),
-              url: String(v.url || ''),
-              parameter: v.parameter ? String(v.parameter) : '',
-              payload: v.payload ? String(v.payload) : '',
-              evidence: v.evidence ? String(v.evidence) : '',
-              remediation: v.remediation ? String(v.remediation) : '',
-              cvss: typeof v.cvss === 'number' ? v.cvss : 0,
-              cvss_version: v.cvss_version ? String(v.cvss_version) : undefined,
-              severity: String(v.severity || ''),
-              ai_summary: v.ai_summary ? String(v.ai_summary) : '',
-              confidence: v.confidence ? String(v.confidence) : '',
-              timestamp: v.timestamp ? String(v.timestamp) : '',
-            }));
-            setVulnerabilities(mappedVulns);
-            const aiEnriched = mappedVulns.filter(v => v.ai_summary && v.ai_summary.length > 0).length;
-            const highConfidence = mappedVulns.filter(v => v.confidence === 'High').length;
-            const recommendationsGenerated = mappedVulns.filter(v => v.remediation && !/missing GROQ_API_KEY/i.test(v.remediation)).length;
-            const coverage = mappedVulns.length > 0 ? Math.round((aiEnriched / mappedVulns.length) * 100) : 0;
-            setStats({
-              total_vulnerabilities: mappedVulns.length,
-              ai_enriched: aiEnriched,
-              high_confidence: highConfidence,
-              recommendations_generated: recommendationsGenerated,
-              analysis_coverage: coverage
-            });
-          }
-        } catch (error) {
-          console.error('Failed to fetch fresh AI analysis:', error);
-        } finally {
-          setLoading(false);
-        }
-      }, 2000);
+      
+      // 2. THE FIX: Once enrichment is done, call the fetch function to get the updated data
+      await fetchAIAnalysis();
+
     } catch (error) {
       console.error('Failed to trigger AI enrichment:', error);
+      // Optionally, show a toast notification to the user about the failure
+    } finally {
+      // 3. This will run after the try or catch block is finished
       setLoading(false);
     }
   };
@@ -385,10 +348,10 @@ export function AIAnalysis() {
                       </Badge>
                       <span className="text-sm font-medium">{vuln.type}</span>
                     </div>
-          {vuln.ai_summary ? (
+                    {vuln.ai_summary ? (
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         <CheckCircle className="h-3 w-3 mr-1" />
-            AI Analyzed
+                        AI Analyzed
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
@@ -451,7 +414,7 @@ export function AIAnalysis() {
         </TabsContent>
       </Tabs>
 
-      {/* Detailed View Modal would go here */}
+      {/* Detailed View Modal */}
       {selectedVuln && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedVuln(null)}>
           <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -510,3 +473,4 @@ export function AIAnalysis() {
     </div>
   );
 }
+
