@@ -46,6 +46,7 @@ app.add_middleware(
     allow_origins=[
         FRONTEND_URL, 
         "https://vulnscan-nine.vercel.app",
+        "https://cts-hackathon-production.up.railway.app",
         "http://localhost:5173", 
         "http://localhost:3000",
         "http://localhost:8000"

@@ -2,10 +2,10 @@
 const isDevelopment = import.meta.env.DEV;
 const API_BASE_URL = isDevelopment 
   ? 'http://localhost:8000' 
-  : (import.meta.env.VITE_API_URL || 'https://cts-hackathon-oan6.onrender.com');
+  : (import.meta.env.VITE_API_URL || 'https://cts-hackathon-production.up.railway.app');
 const WS_BASE_URL = isDevelopment 
   ? 'ws://localhost:8000' 
-  : (import.meta.env.VITE_WS_URL || 'wss://cts-hackathon-oan6.onrender.com');
+  : (import.meta.env.VITE_WS_URL || 'wss://cts-hackathon-production.up.railway.app');
 // Groq AI configuration (frontend reference). API key removed — backend proxy handles all enrichment.
 export const GROQ_MODEL = 'qwen/qwen3-32b';
 // NOTE: No API key here. Backend endpoint /api/ai/enrich performs remediation enrichment securely.
