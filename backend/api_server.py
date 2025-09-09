@@ -37,6 +37,48 @@ from models import ScanDocument, VulnerabilityDocument, ScanLogEntry, ScanStatus
 
 app = FastAPI(title="VulnScan GUI API", version="1.0.0")
 
+# Endpoint to fetch last scan details for persistence
+@app.get("/api/scan/last")
+async def get_last_scan_details():
+    try:
+        last_scan = await mongo_service.get_last_scan()
+        if not last_scan:
+            return {"scan": None, "vulnerabilities": [], "logs": []}
+        vulns_response = await mongo_service.get_vulnerabilities(scan_id=last_scan.scan_id)
+        vulnerabilities = [v.dict() for v in vulns_response.get("vulnerabilities", [])]
+        logs = [l.dict() for l in await mongo_service.get_scan_logs(last_scan.scan_id)]
+        return {
+            "scan": last_scan.dict(),
+            "vulnerabilities": vulnerabilities,
+            "logs": logs
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# Endpoint to fetch last vulnerabilities only
+@app.get("/api/vulnerabilities/last")
+async def get_last_vulnerabilities():
+    try:
+        last_scan = await mongo_service.get_last_scan()
+        if not last_scan:
+            return {"vulnerabilities": [], "total": 0}
+        vulns_response = await mongo_service.get_vulnerabilities(scan_id=last_scan.scan_id)
+        vulnerabilities = [v.dict() for v in vulns_response.get("vulnerabilities", [])]
+        return {"vulnerabilities": vulnerabilities, "total": len(vulnerabilities)}
+    except Exception as e:
+        return {"error": str(e)}
+
+# Endpoint to fetch last scan logs only
+@app.get("/api/scan/last/logs")
+async def get_last_scan_logs():
+    try:
+        last_scan = await mongo_service.get_last_scan()
+        if not last_scan:
+            return {"logs": []}
+        logs = [l.dict() for l in await mongo_service.get_scan_logs(last_scan.scan_id)]
+        return {"logs": logs}
+    except Exception as e:
+        return {"error": str(e)}
 # Load environment variables from .env if present
 try:
     from dotenv import load_dotenv
@@ -53,13 +95,32 @@ async def startup_event():
     except Exception as e:
         print(f"⚠️  MongoDB connection failed: {e}")
         print("📝 Running in MongoDB-optional mode. Some features may be limited.")
-        
+
     try:
         await oast_collaborator.initialize()
         print("✅ OAST collaborator initialized")
     except Exception as e:
         print(f"⚠️  OAST initialization failed: {e}")
-        
+
+    # Restore last scan state from MongoDB if available
+    try:
+        if mongodb.is_connected():
+            last_scan = await mongo_service.get_last_scan()
+            if last_scan:
+                scan_state.current_scan_id = last_scan.scan_id
+                scan_state.is_scanning = False
+                scan_state.scan_progress = 100
+                scan_state.current_phase = "completed"
+                scan_state.current_url = last_scan.target_url
+                scan_state.start_time = last_scan.created_at
+                scan_state.scan_config = last_scan.dict()
+                vulns_response = await mongo_service.get_vulnerabilities(scan_id=last_scan.scan_id)
+                scan_state.vulnerabilities = [v.dict() for v in vulns_response.get("vulnerabilities", [])]
+                scan_state.scan_log = [l.dict() for l in await mongo_service.get_scan_logs(last_scan.scan_id)]
+                print(f"✅ Restored last scan state: {last_scan.scan_id}")
+    except Exception as e:
+        print(f"⚠️  Failed to restore last scan state: {e}")
+
     print("🚀 Server startup completed!")
 
 @app.on_event("shutdown")
@@ -752,6 +813,28 @@ async def run_real_time_scan(scan_request: ScanRequest, scan_id: str):
                 convert_finding_to_dict(v) if not isinstance(v, dict) else v
                 for v in vulnerabilities
             ]
+            # Persist scan and vulnerabilities to MongoDB
+            if mongodb.is_connected():
+                from models import VulnerabilityDocument
+                for v in scan_state.vulnerabilities:
+                    try:
+                        vdoc = VulnerabilityDocument(
+                            scan_id=scan_id,
+                            type=v.get("type", "unknown"),
+                            url=v.get("url", ""),
+                            parameter=v.get("parameter"),
+                            payload=v.get("payload"),
+                            evidence=v.get("evidence", ""),
+                            severity=v.get("severity", "medium"),
+                            cvss_score=v.get("cvss", 0.0),
+                            epss_score=v.get("epss", 0.0),
+                            confidence=v.get("confidence", "Medium"),
+                            remediation=v.get("remediation"),
+                            ai_summary=v.get("ai_summary"),
+                        )
+                        await mongo_service.create_vulnerability(vdoc)
+                    except Exception as e:
+                        print(f"Failed to persist vulnerability: {e}")
         except Exception:
             pass
 
@@ -1322,6 +1405,29 @@ async def enrich_vulnerabilities():
                     scan_state.vulnerabilities[i]["ai_summary"] = f"AI-enhanced {vuln_type} remediation"
             if changed:
                 updated += 1
+
+        # Persist enriched vulnerabilities to MongoDB
+        if mongodb.is_connected() and scan_state.current_scan_id:
+            from models import VulnerabilityDocument
+            for v in scan_state.vulnerabilities:
+                try:
+                    vdoc = VulnerabilityDocument(
+                        scan_id=scan_state.current_scan_id,
+                        type=v.get("type", "unknown"),
+                        url=v.get("url", ""),
+                        parameter=v.get("parameter"),
+                        payload=v.get("payload"),
+                        evidence=v.get("evidence", ""),
+                        severity=v.get("severity", "medium"),
+                        cvss_score=v.get("cvss", 0.0),
+                        epss_score=v.get("epss", 0.0),
+                        confidence=v.get("confidence", "Medium"),
+                        remediation=v.get("remediation"),
+                        ai_summary=v.get("ai_summary"),
+                    )
+                    await mongo_service.create_vulnerability(vdoc)
+                except Exception as e:
+                    print(f"Failed to persist enriched vulnerability: {e}")
 
         add_log_entry("AI enrichment completed", "info", None, "enriching")
         await manager.send_message({

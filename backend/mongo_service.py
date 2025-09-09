@@ -13,6 +13,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MongoService:
+    async def get_last_scan(self) -> Optional[ScanDocument]:
+        """Get the most recent completed scan"""
+        if not self._check_connection():
+            return None
+        try:
+            scans_collection = mongodb.db.scans
+            scan_data = await scans_collection.find_one({"status": "completed"}, sort=[("created_at", -1)])
+            if scan_data:
+                return ScanDocument(**scan_data)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get last scan: {e}")
+            return None
     
     def _check_connection(self):
         """Check if MongoDB is available"""

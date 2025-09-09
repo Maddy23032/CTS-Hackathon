@@ -8,6 +8,31 @@ import asyncio
 from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
 from typing import List, Dict, Any, Optional
 
+def calculate_cvss_4(vuln_type, severity, confidence):
+    # Example mapping for demonstration; real calculation should use CVSS 4.0 formula
+    base_scores = {
+        'sqli': 8.3,
+        'xss': 5.7,
+        'ssrf': 7.8,
+        'blind sqli (oast)': 9.0,
+        'blind xss (oast)': 8.0,
+        'blind ssrf (oast)': 8.5
+    }
+    score = base_scores.get(vuln_type.lower(), 5.0)
+    if severity == 'Critical':
+        score = max(score, 9.5)
+    elif severity == 'High':
+        score = max(score, 8.0)
+    elif severity == 'Medium':
+        score = max(score, 6.0)
+    elif severity == 'Low':
+        score = max(score, 4.0)
+    if confidence == 'High':
+        score += 0.5
+    elif confidence == 'Low':
+        score -= 0.5
+    return min(score, 10.0)
+
 class SSRFScanner:
     """Scanner for Server-Side Request Forgery (SSRF) vulnerabilities - GUI adapted version"""
     
@@ -93,8 +118,9 @@ class SSRFScanner:
         r'security-groups'
     ]
     
-    def __init__(self, websocket_manager=None):
+    def __init__(self, websocket_manager=None, oast_collaborator=None):
         self.websocket_manager = websocket_manager
+        self.oast_collaborator = oast_collaborator
         self.scan_id = None
         self.session = requests.Session()
         self.session.headers.update({
@@ -151,7 +177,7 @@ class SSRFScanner:
                 print(f"Logging error: {e}")
 
     async def scan(self, attack_surface: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Main scanning method"""
+        """Main scanning method with OAST integration"""
         findings = []
         
         # Get URLs from attack surface
@@ -168,6 +194,10 @@ class SSRFScanner:
             if self._cancel:
                 break
             findings.extend(await self._test_url_parameters_ssrf(url))
+            
+            # Test SSRF using OAST payloads
+            if self.oast_collaborator:
+                findings.extend(await self._test_oast_ssrf(url))
             
             # Tiny pacing to avoid hammering
             await asyncio.sleep(0.01)
@@ -263,8 +293,8 @@ class SSRFScanner:
                             break
                         finding = await self._test_ssrf_payload(test_url, param_name, payload)
                         if finding:
+                            finding['cvss'] = calculate_cvss_4("ssrf", finding.get('severity', 'Medium'), finding.get('confidence', 'Medium'))
                             findings.append(finding)
-                            # Circuit breaker: stop after first positive
                             break
                         await asyncio.sleep(0.01)
                         
@@ -565,3 +595,37 @@ class SSRFScanner:
                 combined.append(extra)
         # Limit to a small set for speed
         return combined[:4]
+
+    async def _test_oast_ssrf(self, url: str) -> List[Dict[str, Any]]:
+        """Test SSRF using OAST payloads and log each test"""
+        findings = []
+        oast_payloads = self.oast_collaborator.generate_xss_payloads() if self.oast_collaborator else []
+        for payload_info in oast_payloads:
+            payload = payload_info['payload']
+            callback_id = payload_info['callback_id']
+            self.log(f"[OAST-SSRF] Testing SSRF with OAST payload: {payload}")
+            try:
+                test_url = f"{url}?ssrf_oast={payload}"
+                response = await asyncio.to_thread(
+                    self.session.get,
+                    test_url,
+                    timeout=self.TIMEOUT_THRESHOLD,
+                    allow_redirects=False,
+                )
+                import time
+                time.sleep(3)
+                if self.oast_collaborator.check_callback(callback_id):
+                    self.log(f"BLIND SSRF detected via OAST: {url} payload={payload}")
+                    findings.append({
+                        'type': 'Blind SSRF (OAST)',
+                        'severity': 'High',
+                        'url': url,
+                        'parameter': 'ssrf_oast',
+                        'payload': payload,
+                        'evidence': 'OAST callback received indicating successful blind SSRF execution',
+                        'confidence': 'High'
+                    })
+                    break
+            except Exception as e:
+                self.log(f"OAST SSRF request failed: {e}", "ERROR")
+        return findings

@@ -1,5 +1,6 @@
 import re
 from vulnerability import Vulnerability
+from .ssrf_scanner import calculate_cvss_4  # Use relative import for CVSS function
 
 class SQLiScanner:
 	ERROR_SIGNATURES = [
@@ -42,34 +43,23 @@ class SQLiScanner:
 					test_params = {p: (payload if p == param else 'test') for p in params}
 					self.log(f"[GET] Testing {url} param={param} payload={payload}")
 					try:
-						resp = self.session.get(url, params=test_params, timeout=5)
-						if self.is_error(resp.text):
-							evidence = self.extract_evidence(resp.text)
+						resp = self.session.get(url, params=test_params, timeout=10)
+						if self.is_injection_successful(payload, resp.text):
+							evidence = self.extract_evidence(payload, resp.text)
 							findings.append(Vulnerability(
 								vulnerability_type="sqli",
 								url=url,
 								parameter=param,
 								payload=payload,
-								evidence=evidence
+								evidence=evidence,
+								cvss=calculate_cvss_4("sqli", "High", "High")
 							))
 							self.log(f"SQLi found: {url} param={param} payload={payload}")
 							break  # Only report first payload that triggers error
 					except Exception as e:
-						# Check if it's a timeout error - could indicate time-based blind SQLi
-						if "timeout" in str(e).lower() or "read timed out" in str(e).lower():
-							self.log(f"Timeout detected - potential time-based blind SQLi: {url} param={param} payload={payload}")
-							findings.append(Vulnerability(
-								vulnerability_type="sqli",
-								url=url,
-								parameter=param,
-								payload=payload,
-								evidence=f"Time-based blind SQL injection detected: Request timed out after 5 seconds. Error: {str(e)}"
-							))
-							break  # Found time-based SQLi, move to next parameter
-						else:
-							self.log(f"Request failed: {e}")
+						self.log(f"Request failed: {e}")
 				
-				# If OAST is available, test for blind SQLi
+				# OAST logic for blind SQLi
 				if self.oast_collaborator:
 					self._test_blind_sqli_url_param(url, param, params, findings)
 		# Test forms (only GET/POST)
@@ -79,14 +69,6 @@ class SQLiScanner:
 			url = form['url']
 			method = form['method']
 			inputs = form['inputs']
-			# Skip forms with CSRF tokens or only hidden/system fields
-			if any('csrf' in i.lower() for i in inputs):
-				self.log(f"Skipping form {url} due to CSRF token field.")
-				continue
-			if method == 'post':
-				if post_attempts >= max_post_attempts:
-					self.log(f"Max POST attempts reached, skipping further POST form tests.")
-					break
 			for param in inputs:
 				# Test basic error-based payloads
 				for payload in self.payloads:
@@ -94,39 +76,27 @@ class SQLiScanner:
 					self.log(f"[{method.upper()}] Testing {url} param={param} payload={payload}")
 					try:
 						if method == 'post':
-							resp = self.session.post(url, data=data, timeout=5)
+							resp = self.session.post(url, data=data, timeout=10)
 							post_attempts += 1
 						else:
-							resp = self.session.get(url, params=data, timeout=5)
-						if self.is_error(resp.text):
-							evidence = self.extract_evidence(resp.text)
+							resp = self.session.get(url, params=data, timeout=10)
+						if self.is_injection_successful(payload, resp.text):
+							evidence = self.extract_evidence(payload, resp.text)
 							findings.append(Vulnerability(
 								vulnerability_type="sqli",
 								url=url,
 								parameter=param,
 								payload=payload,
-								evidence=evidence
+								evidence=evidence,
+								cvss=calculate_cvss_4("sqli", "High", "High")
 							))
 							self.log(f"SQLi found: {url} param={param} payload={payload}")
 							break
 					except Exception as e:
-						# Check if it's a timeout error - could indicate time-based blind SQLi
-						if "timeout" in str(e).lower() or "read timed out" in str(e).lower():
-							self.log(f"Timeout detected - potential time-based blind SQLi: {url} param={param} payload={payload}")
-							findings.append(Vulnerability(
-								vulnerability_type="sqli",
-								url=url,
-								parameter=param,
-								payload=payload,
-								evidence=f"Time-based blind SQL injection detected: Request timed out after 5 seconds. Error: {str(e)}"
-							))
-							break  # Found time-based SQLi, move to next parameter
-						else:
-							self.log(f"Request failed: {e}")
-				
-				# If OAST is available, test for blind SQLi in forms
+						self.log(f"Request failed: {e}")
+				# OAST logic for blind SQLi
 				if self.oast_collaborator:
-					self._test_blind_sqli_form_param(url, method, param, inputs, findings, post_attempts)
+					self._test_blind_sqli_form_param(url, method, param, inputs, findings)
 		
 		return findings
 
@@ -159,49 +129,33 @@ class SQLiScanner:
 		for payload_info in oast_payloads:
 			payload = payload_info['payload']
 			callback_id = payload_info['callback_id']
-			db_type = payload_info['db_type']
-			
-			test_params = {p: (payload if p == param else 'test') for p in params}
-			self.log(f"[OAST-GET] Testing blind SQLi {url} param={param} db={db_type}")
+			self.log(f"[OAST-GET] Testing blind SQLi {url} param={param} payload={payload}")
 			
 			try:
-				# Send the request with OAST payload
-				resp = self.session.get(url, params=test_params, timeout=5)
+				test_params = {p: (payload if p == param else 'test') for p in params}
+				resp = self.session.get(url, params=test_params, timeout=10)
 				
 				# Wait briefly for callback
 				import time
-				time.sleep(2)
+				time.sleep(3)
 				
 				# Check if we received a callback
 				if self.oast_collaborator.check_callback(callback_id):
-					self.log(f"BLIND SQLi detected via OAST: {url} param={param} db={db_type}")
+					self.log(f"BLIND SQLi detected via OAST: {url} param={param}")
 					findings.append(Vulnerability(
-						vulnerability_type="sqli",
+						vulnerability_type="Blind SQLi (OAST)",
 						url=url,
 						parameter=param,
 						payload=payload,
-						evidence=f"OAST callback received for {db_type} blind SQL injection",
+						evidence="OAST callback received indicating successful blind SQLi execution",
 						confidence="High"
 					))
 					break  # Found vulnerability, no need to test other DB types
 					
 			except Exception as e:
-				# Check if it's a timeout error - could indicate time-based blind SQLi
-				if "timeout" in str(e).lower() or "read timed out" in str(e).lower():
-					self.log(f"Timeout detected during OAST test - potential time-based blind SQLi: {url} param={param}")
-					findings.append(Vulnerability(
-						vulnerability_type="sqli",
-						url=url,
-						parameter=param,
-						payload=payload,
-						evidence=f"Time-based blind SQL injection detected during OAST test: Request timed out after 5 seconds. Error: {str(e)}",
-						confidence="Medium"
-					))
-					break  # Found time-based SQLi, stop testing other DB types
-				else:
-					self.log(f"OAST request failed: {e}")
+				self.log(f"OAST request failed: {e}")
 
-	def _test_blind_sqli_form_param(self, url, method, param, inputs, findings, post_attempts):
+	def _test_blind_sqli_form_param(self, url, method, param, inputs, findings):
 		"""Test for blind SQLi using OAST callbacks on form parameters"""
 		if not self.oast_collaborator:
 			return
@@ -216,47 +170,32 @@ class SQLiScanner:
 		for payload_info in oast_payloads:
 			payload = payload_info['payload']
 			callback_id = payload_info['callback_id']
-			db_type = payload_info['db_type']
-			
 			data = {p: (payload if p == param else 'test') for p in inputs}
-			self.log(f"[OAST-{method.upper()}] Testing blind SQLi {url} param={param} db={db_type}")
+			self.log(f"[OAST-{method.upper()}] Testing blind SQLi {url} param={param} payload={payload}")
 			
 			try:
 				# Send the request with OAST payload
 				if method == 'post':
-					resp = self.session.post(url, data=data, timeout=5)
+					resp = self.session.post(url, data=data, timeout=10)
 				else:
-					resp = self.session.get(url, params=data, timeout=5)
+					resp = self.session.get(url, params=data, timeout=10)
 				
 				# Wait briefly for callback
 				import time
-				time.sleep(2)
+				time.sleep(3)
 				
 				# Check if we received a callback
 				if self.oast_collaborator.check_callback(callback_id):
-					self.log(f"BLIND SQLi detected via OAST: {url} param={param} db={db_type}")
+					self.log(f"BLIND SQLi detected via OAST: {url} param={param}")
 					findings.append(Vulnerability(
-						vulnerability_type="sqli",
+						vulnerability_type="Blind SQLi (OAST)",
 						url=url,
 						parameter=param,
 						payload=payload,
-						evidence=f"OAST callback received for {db_type} blind SQL injection",
+						evidence="OAST callback received indicating successful blind SQLi execution",
 						confidence="High"
 					))
 					break  # Found vulnerability, no need to test other DB types
 					
 			except Exception as e:
-				# Check if it's a timeout error - could indicate time-based blind SQLi
-				if "timeout" in str(e).lower() or "read timed out" in str(e).lower():
-					self.log(f"Timeout detected during OAST form test - potential time-based blind SQLi: {url} param={param}")
-					findings.append(Vulnerability(
-						vulnerability_type="sqli",
-						url=url,
-						parameter=param,
-						payload=payload,
-						evidence=f"Time-based blind SQL injection detected during OAST form test: Request timed out after 5 seconds. Error: {str(e)}",
-						confidence="Medium"
-					))
-					break  # Found time-based SQLi, stop testing other DB types
-				else:
-					self.log(f"OAST request failed: {e}")
+				self.log(f"OAST request failed: {e}")

