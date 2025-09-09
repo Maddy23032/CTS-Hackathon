@@ -37,6 +37,18 @@ from models import ScanDocument, VulnerabilityDocument, ScanLogEntry, ScanStatus
 
 app = FastAPI(title="VulnScan GUI API", version="1.0.0")
 
+# Get the frontend URL from environment variable
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Endpoint to fetch last scan details for persistence
 @app.get("/api/scan/last")
 async def get_last_scan_details():

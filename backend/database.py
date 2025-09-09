@@ -6,14 +6,20 @@ from pymongo import ASCENDING, DESCENDING
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 class MongoDB:
-    def __init__(self, connection_string: str = "mongodb://localhost:27017"):
+    def __init__(self, connection_string: str = None):
         self.client = None
         self.db = None
-        self.connection_string = connection_string
+        # Use environment variable first, then fallback to parameter, then localhost
+        self.connection_string = (
+            connection_string or 
+            os.getenv("MONGODB_URI") or 
+            "mongodb://localhost:27017"
+        )
         
     async def connect(self):
         """Connect to MongoDB"""

@@ -1,6 +1,6 @@
 // API service for connecting to VulnScan backend
-const API_BASE_URL = 'http://localhost:8000';
-const WS_BASE_URL = 'ws://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
 // Groq AI configuration (frontend reference). API key removed — backend proxy handles all enrichment.
 export const GROQ_MODEL = 'qwen/qwen3-32b';
 // NOTE: No API key here. Backend endpoint /api/ai/enrich performs remediation enrichment securely.
