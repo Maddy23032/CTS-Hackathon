@@ -1,0 +1,5 @@
+{
+  "name": "AI-Powered Vulnerability Report",
+  "description": "An interactive dashboard for viewing vulnerability scan results. Features a graphical summary, detailed vulnerability information, NVD integration, and AI-powered remediation suggestions using Google's Gemini API.",
+  "requestFramePermissions": []
+}

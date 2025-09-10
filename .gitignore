@@ -23,17 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment and local config (do not commit secrets)
+# Python / backend env files
 .env
 .env.*
-.env.local
-.env.development
-.env.production
-backend/.env
-frontend/.env
-
-# Deployment files with sensitive information
-DEPLOYMENT.md
-
-# Local AI usage tracking file
-backend/groq_usage.json
+!.env.example

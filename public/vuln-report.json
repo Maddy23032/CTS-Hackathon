@@ -1,0 +1,74 @@
+{
+  "target": "https://www.dvwa.co.uk/",
+  "count": 4,
+  "findings": [
+    {
+      "id": "AUTO-eae0215def1f",
+      "name": "XSS",
+      "type": "XSS",
+      "severity": "Medium",
+      "cvss": {
+        "version": "4.0",
+        "score": 6.5
+      },
+      "epss": 0.85,
+      "description": "Detected XSS at https://www.dvwa.co.uk/contact/ parameter 'page_title'. Evidence: type=\"hidden\" name=\"page_title\" value=\"javascript:alert(1)\"><input type=\"hidden\" name=\"page_url\" v",
+      "evidence": {
+        "file": "https://www.dvwa.co.uk/contact/",
+        "lineNumber": 0,
+        "codeSnippet": " type=\"hidden\" name=\"page_title\" value=\"javascript:alert(1)\"><input type=\"hidden\" name=\"page_url\" v"
+      }
+    },
+    {
+      "id": "AUTO-eae0215def1f",
+      "name": "XSS",
+      "type": "XSS",
+      "severity": "Medium",
+      "cvss": {
+        "version": "4.0",
+        "score": 6.5
+      },
+      "epss": 0.85,
+      "description": "Detected XSS at https://www.dvwa.co.uk/contact/ parameter 'page_title'. Evidence: type=\"hidden\" name=\"page_title\" value=\"javascript:alert(1)\"><input type=\"hidden\" name=\"page_url\" v",
+      "evidence": {
+        "file": "https://www.dvwa.co.uk/contact/",
+        "lineNumber": 0,
+        "codeSnippet": " type=\"hidden\" name=\"page_title\" value=\"javascript:alert(1)\"><input type=\"hidden\" name=\"page_url\" v"
+      }
+    },
+    {
+      "id": "AUTO-7a98b5c7b37d",
+      "name": "CSRF",
+      "type": "CSRF",
+      "severity": "Medium",
+      "cvss": {
+        "version": "4.0",
+        "score": 6.4
+      },
+      "epss": 0.77,
+      "description": "Detected CSRF at https://www.dvwa.co.uk/contact/ parameter 'wpforms[fields][1],wpforms[fields][4],wpforms[fields][2],wpforms[fields][5],wpforms[fields][3],wpforms[id],page_title,page_url,url_referer,page_id,wpforms[post_id]'. Evidence: No anti-CSRF token found in POST form.",
+      "evidence": {
+        "file": "https://www.dvwa.co.uk/contact/",
+        "lineNumber": 0,
+        "codeSnippet": "No anti-CSRF token found in POST form."
+      }
+    },
+    {
+      "id": "AUTO-7a98b5c7b37d",
+      "name": "CSRF",
+      "type": "CSRF",
+      "severity": "Medium",
+      "cvss": {
+        "version": "4.0",
+        "score": 6.4
+      },
+      "epss": 0.77,
+      "description": "Detected CSRF at https://www.dvwa.co.uk/contact/ parameter 'wpforms[fields][1],wpforms[fields][4],wpforms[fields][2],wpforms[fields][5],wpforms[fields][3],wpforms[id],page_title,page_url,url_referer,page_id,wpforms[post_id]'. Evidence: No anti-CSRF token found in POST form.",
+      "evidence": {
+        "file": "https://www.dvwa.co.uk/contact/",
+        "lineNumber": 0,
+        "codeSnippet": "No anti-CSRF token found in POST form."
+      }
+    }
+  ]
+}
