@@ -253,16 +253,13 @@ export const OASTManager: React.FC = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                <CardTitle className="text-sm font-medium">Vulnerability %</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {oastStatus?.statistics.success_rate || 0}%
+                  {oastStatus?.statistics.vulnerability_percentage || 0}%
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Callback success rate
-                </p>
               </CardContent>
             </Card>
           </div>

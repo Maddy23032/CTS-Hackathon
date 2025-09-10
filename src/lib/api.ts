@@ -156,7 +156,7 @@ export interface OASTStatus {
     active_payloads: number;
     total_callbacks: number;
     vulnerability_types: Record<string, { payloads: number; callbacks: number }>;
-    success_rate: number;
+    vulnerability_percentage: number;
   };
 }
 

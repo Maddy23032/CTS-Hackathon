@@ -654,7 +654,7 @@ class OASTCollaborator:
             "active_payloads": active_payloads,
             "total_callbacks": total_callbacks,
             "vulnerability_types": vuln_types,
-            "success_rate": round((total_callbacks / total_payloads * 100) if total_payloads > 0 else 0, 2)
+            "vulnerability_percentage": round((total_callbacks / total_payloads * 100) if total_payloads > 0 else 0, 2)
         }
 
 
