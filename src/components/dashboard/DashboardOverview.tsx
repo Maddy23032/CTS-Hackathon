@@ -55,8 +55,22 @@ export function DashboardOverview() {
     fetchStats();
   }, [scanStatus.scan_id]); // Refresh when a new scan starts
 
+  // While a scan is running, periodically refresh stats to keep Active Scan info current
+  useEffect(() => {
+    if (scanStatus.is_scanning) {
+      const interval = setInterval(() => {
+        fetchStats();
+      }, 4000); // lightweight periodic refresh
+      return () => clearInterval(interval);
+    }
+  }, [scanStatus.is_scanning]);
+
   const stats = {
-    totalScans: 1, // We can track this later
+    // Replace placeholder total scans with derived metric (vulnerability density)
+    vulnerabilityDensity: (() => {
+      const urls = scanStatus.stats?.urls_crawled || 0;
+      return urls > 0 ? (vulnerabilityStats.total / urls).toFixed(2) : '0.00';
+    })(),
     activeScans: scanStatus.is_scanning ? 1 : 0,
     vulnerabilitiesFound: vulnerabilityStats.total,
     criticalVulns: vulnerabilityStats.critical,
@@ -89,18 +103,18 @@ export function DashboardOverview() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-security border-border hover:shadow-glow-primary transition-all duration-300">
+  <Card className="bg-gradient-security border-border hover:shadow-glow-primary transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Scans
+              Vulnerability Density
             </CardTitle>
             <Target className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.totalScans}</div>
+            <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.vulnerabilityDensity}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
-              System operational
+              Vulns per crawled URL
             </p>
           </CardContent>
         </Card>
@@ -108,7 +122,7 @@ export function DashboardOverview() {
         <Card className="bg-gradient-security border-border hover:shadow-glow-primary transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Scans
+              Active Scan
             </CardTitle>
             <Activity className={`h-4 w-4 ${scanStatus.is_scanning ? 'text-status-scanning animate-pulse-glow' : 'text-muted-foreground'}`} />
           </CardHeader>
@@ -116,7 +130,7 @@ export function DashboardOverview() {
             <div className="text-2xl font-bold text-foreground">{stats.activeScans}</div>
             <p className="text-xs text-status-scanning">
               <Zap className="inline h-3 w-3 mr-1" />
-              {scanStatus.is_scanning ? 'Currently running' : 'Idle'}
+              {scanStatus.is_scanning ? 'Running' : 'Idle'}
             </p>
           </CardContent>
         </Card>
