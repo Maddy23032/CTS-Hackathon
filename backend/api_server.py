@@ -1672,6 +1672,42 @@ async def generate_oast_payloads(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate payloads: {str(e)}")
 
+@app.post("/api/oast/simulate")
+async def simulate_oast_callback(payload_id: str, vulnerability_type: Optional[str] = None):
+    """Simulate an OAST callback for testing/demo purposes.
+    This helps verify frontend real-time updates without an actual external collaborator."""
+    try:
+        payloads = oast_collaborator.payloads
+        if payload_id not in payloads:
+            raise HTTPException(status_code=404, detail="Payload ID not found")
+        payload = payloads[payload_id]
+        vuln_type = vulnerability_type or payload.vulnerability_type or "unknown"
+        callback_data = {
+            "payload_id": payload_id,
+            "source_ip": "127.0.0.1",
+            "method": "GET",
+            "headers": {"X-Demo": "true"},
+            "body": "",
+            "url": f"{payload.callback_url}?simulated=1",
+            "vulnerability_type": vuln_type,
+            "scan_id": payload.scan_id
+        }
+        success = await oast_collaborator.register_callback(callback_data)
+        if success:
+            await manager.send_message({
+                "type": "oast_callback",
+                "payload_id": payload_id,
+                "source_ip": callback_data["source_ip"],
+                "timestamp": datetime.now().isoformat(),
+                "vulnerability_type": vuln_type
+            })
+            return {"status": "success", "message": "Simulated callback registered"}
+        raise HTTPException(status_code=500, detail="Failed to register simulated callback")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
 @app.delete("/api/oast/cleanup")
 async def cleanup_oast_data():
     """Cleanup expired OAST payloads and callbacks"""

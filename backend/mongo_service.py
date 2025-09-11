@@ -368,23 +368,18 @@ class MongoService:
         """Get analytics for the last N days"""
         if not self._check_connection():
             return {"daily_data": [], "total_scans": 0, "vulnerability_trends": {}, "scan_success_rate": 0, "date_range": ""}
-        
         try:
             analytics_collection = mongodb.db.analytics
-            
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=days)
             start_date_str = start_date.strftime("%Y-%m-%d")
             end_date_str = end_date.strftime("%Y-%m-%d")
-            
-            # Exclude MongoDB _id to avoid JSON encoding errors
+
             cursor = analytics_collection.find(
-                {"date": {"$gte": start_date_str, "$lte": end_date_str}},
-                {"_id": 0}
+                {"date": {"$gte": start_date_str, "$lte": end_date_str}}, {"_id": 0}
             ).sort("date", 1)
-            
             analytics_data = await cursor.to_list(length=days)
-            # If nothing returned but we do have scans, auto-backfill once
+
             if not analytics_data:
                 try:
                     scans_count = await mongodb.db.scans.count_documents({})
@@ -392,41 +387,26 @@ class MongoService:
                         logger.info("No analytics docs found; triggering on-demand rebuild")
                         await self.force_rebuild(days=min(days, 90))
                         cursor = analytics_collection.find(
-                            {"date": {"$gte": start_date_str, "$lte": end_date_str}},
-                            {"_id": 0}
+                            {"date": {"$gte": start_date_str, "$lte": end_date_str}}, {"_id": 0}
                         ).sort("date", 1)
                         analytics_data = await cursor.to_list(length=days)
                 except Exception as e:
                     logger.warning(f"Auto-backfill analytics failed: {e}")
-            # Normalize any datetime fields for JSON (e.g., updated_at)
-            for item in analytics_data:
-                try:
-                    if isinstance(item.get("updated_at"), datetime):
-                        item["updated_at"] = item["updated_at"].isoformat()
-                except Exception:
-                    pass
-            
-            # Process data for trends
-            vulnerability_trends = {}
+
+            vulnerability_trends: Dict[str, List[Dict[str, Any]]] = {}
             total_scans = 0
             total_completed = 0
-            
             for day_data in analytics_data:
                 total_scans += day_data.get("total_scans", 0)
                 total_completed += day_data.get("completed_scans", 0)
-                
                 for vuln_type, count in day_data.get("vulnerabilities_found", {}).items():
-                    vuln_type = (vuln_type or "").lower()
-                    if vuln_type not in vulnerability_trends:
-                        vulnerability_trends[vuln_type] = []
-                    vulnerability_trends[vuln_type].append({
+                    vt = (vuln_type or "").lower()
+                    vulnerability_trends.setdefault(vt, []).append({
                         "date": day_data["date"],
                         "count": count
                     })
-            
-            # Calculate success rate
+
             success_rate = (total_completed / total_scans * 100) if total_scans > 0 else 0
-            
             return {
                 "date_range": f"{start_date_str} to {end_date_str}",
                 "total_scans": total_scans,
@@ -434,10 +414,33 @@ class MongoService:
                 "scan_success_rate": round(success_rate, 2),
                 "daily_data": analytics_data
             }
-            
         except Exception as e:
             logger.error(f"Failed to get analytics: {e}")
             return {}
+
+    # ==================== OAST OPERATIONS ====================
+
+    async def save_oast_payloads(self, payload_docs: List[Dict[str, Any]]):
+        """Persist a list of OAST payload documents (best-effort)."""
+        if not self._check_connection() or not payload_docs:
+            return
+        try:
+            if hasattr(mongodb, 'db') and mongodb.db is not None:
+                col = mongodb.db.oast_payloads
+                await col.insert_many(payload_docs)
+        except Exception as e:
+            logger.warning(f"Failed to save OAST payloads: {e}")
+
+    async def save_oast_callback(self, callback_doc: Dict[str, Any]):
+        """Persist an OAST callback document (best-effort)."""
+        if not self._check_connection() or not callback_doc:
+            return
+        try:
+            if hasattr(mongodb, 'db') and mongodb.db is not None:
+                col = mongodb.db.oast_callbacks
+                await col.insert_one(callback_doc)
+        except Exception as e:
+            logger.warning(f"Failed to save OAST callback: {e}")
 
 # Global service instance
 mongo_service = MongoService()

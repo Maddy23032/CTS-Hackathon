@@ -25,6 +25,7 @@ import {
 
 interface ScanReport {
   id: string;
+  scan_id?: string; // real scan id from backend (used for downloads)
   timestamp: string;
   target_url: string;
   scan_types: string[];
@@ -241,7 +242,7 @@ const Reports: React.FC = () => {
   const groupedReports: ScanReport[] = React.useMemo(() => {
     if (!vulnerabilities.length) return [];
 
-    // Group by date and target
+    // Group by real scan_id when available; fallback to date+target composite
     const groups = vulnerabilities.reduce((acc, vuln) => {
       const ts = vuln.timestamp || new Date().toISOString();
       const date = (() => {
@@ -253,11 +254,12 @@ const Reports: React.FC = () => {
           return (ts.split('T')[0] || ts).toString();
         }
       })();
-      const key = `${date}-${vuln.url || 'unknown'}`;
+      const key = (vuln as any).scan_id || `${date}-${vuln.url || 'unknown'}`;
       
       if (!acc[key]) {
         acc[key] = {
           id: key,
+          scan_id: (vuln as any).scan_id,
           timestamp: ts,
           target_url: vuln.url || 'unknown',
           scan_types: [
@@ -523,8 +525,8 @@ const Reports: React.FC = () => {
                           variant="ghost" 
                           size="sm" 
                           title="Download HTML Report"
-                          onClick={() => downloadReport(report.id, 'html')}
-                          disabled={downloadingReport === report.id}
+                            onClick={() => report.scan_id && downloadReport(report.scan_id, 'html')}
+                            disabled={downloadingReport === report.id || !report.scan_id}
                         >
                           <Download className={`h-4 w-4 ${downloadingReport === report.id ? 'animate-spin' : ''}`} />
                         </Button>
@@ -532,8 +534,8 @@ const Reports: React.FC = () => {
                           variant="ghost" 
                           size="sm" 
                           title="Download PDF Report"
-                          onClick={() => downloadReport(report.id, 'pdf')}
-                          disabled={downloadingReport === report.id}
+                            onClick={() => report.scan_id && downloadReport(report.scan_id, 'pdf')}
+                            disabled={downloadingReport === report.id || !report.scan_id}
                         >
                           <FileText className={`h-4 w-4 ${downloadingReport === report.id ? 'animate-spin' : ''}`} />
                         </Button>

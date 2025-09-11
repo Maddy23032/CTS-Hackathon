@@ -43,6 +43,20 @@ export const OASTManager: React.FC = () => {
     loadCallbacks();
   }, []);
 
+  useEffect(() => {
+    const handler = (msg: any) => {
+      if (msg?.type === 'oast_payloads_generated') {
+        loadOASTStatus();
+        loadPayloads();
+      } else if (msg?.type === 'oast_callback') {
+        loadOASTStatus();
+        loadCallbacks();
+      }
+    };
+    apiService.addWebSocketListener(handler);
+    return () => apiService.removeWebSocketListener(handler);
+  }, []);
+
   const loadOASTStatus = async () => {
     try {
       const status = await apiService.getOASTStatus();

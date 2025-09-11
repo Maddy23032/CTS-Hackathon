@@ -54,13 +54,13 @@ class OASTCollaborator:
             collaborator_url: Base URL for the collaborator server (e.g., Burp Collaborator)
             auth_token: Authentication token if required
         """
-        # Allow environment variable override
+        # Allow environment variable override (env has precedence only if explicit arg not provided)
         env_url = os.getenv("OAST_COLLABORATOR_URL")
-        base_url = collaborator_url or env_url or "http://gkpxyaluuixskilirkuuqkzubj23rq5xm.oast.fun"
+        base_url = collaborator_url or env_url or "http://jgttkljvdxkvayqdrteglrkmaytpohopd.oast.fun"
         # Normalize and store
         self.collaborator_url = base_url.rstrip('/')
         self.auth_token = auth_token or os.getenv("OAST_COLLABORATOR_TOKEN")
-        # Storage for generated payloads and received callbacks (in-memory only for now)
+        # Storage for generated payloads and received callbacks (in-memory; persisted separately)
         self.payloads = {}
         self.callbacks = {}
         self.session = None

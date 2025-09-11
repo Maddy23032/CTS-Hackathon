@@ -536,6 +536,14 @@ class ApiService {
             if (data?.type === 'scan_started') {
               this.clearLiveVulnerabilities();
             }
+            // Real-time OAST: update status caches proactively
+            if (data?.type === 'oast_payloads_generated') {
+              // Passive: let UI refetch, but could emit custom event in future
+              console.log('OAST payloads generated:', data);
+            }
+            if (data?.type === 'oast_callback') {
+              console.log('OAST callback received:', data);
+            }
       if (data?.type === 'vulnerability_found' && data.vulnerability) {
               const v = data.vulnerability as any;
               const mapped: Vulnerability = {
