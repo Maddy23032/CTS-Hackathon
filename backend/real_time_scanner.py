@@ -79,8 +79,12 @@ class RealTimeScanner(VulnerabilityScanner):
             self.ssrf_scanner,
         ):
             try:
+                # Best-effort cooperative cancel if implemented
                 if hasattr(s, "cancel") and callable(getattr(s, "cancel")):
-                    s.cancel()
+                    try:
+                        getattr(s, "cancel")()  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
@@ -140,6 +144,12 @@ class RealTimeScanner(VulnerabilityScanner):
                 "depth": depth,
                 "total_urls": len(self.discovered_urls),
             })
+            # Sync global scan_state stats if available (optional, avoids hard dependency)
+            try:
+                from api_server import scan_state  # type: ignore
+                scan_state.scan_stats["urls_crawled"] = len(self.discovered_urls)
+            except Exception:
+                pass
 
             try:
                 response = self.session.get(url, timeout=10)
@@ -198,8 +208,10 @@ class RealTimeScanner(VulnerabilityScanner):
                 if page_html:
                     soup = BeautifulSoup(page_html, "html.parser")
                     for link in soup.find_all("a", href=True):
-                        href = link["href"]
-                        full_url = urljoin(url, href)
+                        href = link.get("href")  # type: ignore[call-arg]
+                        if not href:
+                            continue
+                        full_url = urljoin(url, str(href))
                         if urlparse(full_url).netloc == urlparse(self.target_url).netloc and full_url not in visited and depth < max_depth:
                             urls_to_visit.append((full_url, depth + 1))
                     for full_url in dynamic_links:
@@ -215,6 +227,11 @@ class RealTimeScanner(VulnerabilityScanner):
                                 "form": form_data,
                                 "total_forms": len(self.forms),
                             })
+                            try:
+                                from api_server import scan_state  # type: ignore
+                                scan_state.scan_stats["forms_found"] = len(self.forms)
+                            except Exception:
+                                pass
                     for form_data in dynamic_forms:
                         if form_data not in self.forms:
                             self.forms.append(form_data)
@@ -224,6 +241,11 @@ class RealTimeScanner(VulnerabilityScanner):
                                 "form": form_data,
                                 "total_forms": len(self.forms),
                             })
+                            try:
+                                from api_server import scan_state  # type: ignore
+                                scan_state.scan_stats["forms_found"] = len(self.forms)
+                            except Exception:
+                                pass
             except Exception as e:
                 self.log(f"Error crawling {url}: {str(e)}", "ERROR")
 
@@ -247,14 +269,28 @@ class RealTimeScanner(VulnerabilityScanner):
             "progress": 40,
         })
 
-        # Generate OAST payloads if enabled (blind XSS)
+        # Generate OAST payloads if enabled (blind XSS) with runtime guard
         oast_payloads = []
-        if self.enable_oast and self.oast:
-            try:
-                oast_payloads = self.oast.generate_xss_payloads(self.scan_id)
-                self.log(f"Generated {len(oast_payloads)} OAST XSS payloads")
-            except Exception as e:
-                self.log(f"OAST payload generation failed: {e}", "ERROR")
+        if self.enable_oast:
+            if not self.oast:
+                # Late import / instantiate if missing
+                try:
+                    from oast_collaborator import oast_collaborator as _oc  # type: ignore
+                    self.oast = _oc
+                except Exception as e:
+                    self.log(f"OAST collaborator unavailable: {e}", "WARNING")
+            if self.oast:
+                try:
+                    oast_payloads = self.oast.generate_xss_payloads()
+                    self.log(f"Generated {len(oast_payloads)} OAST XSS payloads")
+                    # Broadcast payload generation summary
+                    await self.send_websocket_message({
+                        "type": "oast_payloads_generated",
+                        "vulnerability_type": "xss",
+                        "count": len(oast_payloads),
+                    })
+                except Exception as e:
+                    self.log(f"OAST payload generation failed: {e}", "ERROR")
 
         # Inject OAST XSS payloads (they are designed to beacon back later)
         if oast_payloads:
@@ -530,7 +566,8 @@ class RealTimeScanner(VulnerabilityScanner):
         oast_payloads = []
         if self.enable_oast and self.oast:
             try:
-                oast_payloads = self.oast.generate_sqli_payloads(self.scan_id)
+                # Generate SQLi OAST payloads (no scan_id argument)
+                oast_payloads = self.oast.generate_sqli_payloads()
                 self.log(f"Generated {len(oast_payloads)} OAST SQLi payloads")
             except Exception as e:
                 self.log(f"OAST SQLi payload generation failed: {e}", "ERROR")
