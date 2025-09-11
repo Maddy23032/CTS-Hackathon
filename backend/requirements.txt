@@ -12,3 +12,4 @@ pymongo
 python-dotenv
 reportlab
 aiofiles
+playwright
