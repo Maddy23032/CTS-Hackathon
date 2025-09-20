@@ -1,6 +1,8 @@
 import requests
 from typing import List, Dict, Any
 from urllib.parse import urljoin
+import os
+import json
 
 
 class VulnerabilityScanner:
@@ -22,17 +24,38 @@ class VulnerabilityScanner:
         self.forms: List[Dict[str, Any]] = []
         self.vulnerabilities: List[Dict[str, Any]] = []
 
-        # Basic payload libraries
-        self.xss_payloads = [
-            "<script>alert(1)</script>",
-            "\"'><svg/onload=alert(1)>",
-            "<img src=x onerror=alert(1)>",
-        ]
-        self.sqli_payloads = [
-            "' OR '1'='1 -- ",
-            "\" OR \"1\"=\"1\" -- ",
-            "admin' -- ",
-        ]
+        # Payload loading logic
+        scan_mode = os.getenv("SCAN_MODE", "full")  # can be set externally
+        # XSS
+        xss_path = os.path.join(os.path.dirname(__file__), "payloads", "xss_payloads.txt")
+        try:
+            with open(xss_path, "r", encoding="utf-8") as f:
+                self.xss_payloads = [line.strip() for line in f if line.strip()]
+        except Exception:
+            self.xss_payloads = [
+                "<script>alert(1)</script>",
+                "\"'><svg/onload=alert(1)>",
+                "<img src=x onerror=alert(1)>",
+            ]
+        if scan_mode == "fast":
+            self.xss_payloads = self.xss_payloads[:10]
+        # SQLi
+        sqli_path = os.path.join(os.path.dirname(__file__), "payloads", "sqli_payloads.json")
+        sqli_payloads = []
+        try:
+            with open(sqli_path, "r", encoding="utf-8") as f:
+                db_templates = json.load(f)
+                for db_type, payloads in db_templates.items():
+                    sqli_payloads.extend(payloads)
+        except Exception:
+            sqli_payloads = [
+                "' OR '1'='1 -- ",
+                "\" OR \"1\"=\"1\" -- ",
+                "admin' -- ",
+            ]
+        if scan_mode == "fast":
+            sqli_payloads = sqli_payloads[:10]
+        self.sqli_payloads = sqli_payloads
 
     def log(self, msg: str):
         if self.verbose:

